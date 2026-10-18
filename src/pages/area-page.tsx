@@ -1,43 +1,12 @@
 /* eslint-disable react-hooks/refs */
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import {
-  Activity,
-  Archive,
-  ArrowDown,
-  ArrowUp,
-  BarChart3,
-  BookOpen,
-  CalendarDays,
-  CheckSquare2,
-  Columns3,
-  FileText,
-  GalleryHorizontal,
-  Heading,
-  Image,
-  LayoutGrid,
-  List,
-  MoreHorizontal,
-  Plus,
-  Rows3,
-  Sparkles,
-  Table2,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Archive, MoreHorizontal, Plus, X } from 'lucide-react'
 import {
   closestCenter,
   DndContext,
   KeyboardSensor,
   PointerSensor,
-  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -75,6 +44,7 @@ import { Select } from '@/components/ui/select'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ViewRenderer } from '@/components/areas/view-renderer'
 import { AreaIcon } from '@/components/areas/area-icon'
+import { SortableAreaBlock } from '@/components/areas/sortable-area-block'
 import { blockOptions } from '@/components/areas/area-block-options'
 import { AreaSettingsPanel } from '@/components/areas/area-settings-panel'
 import {
@@ -84,10 +54,10 @@ import {
 } from '@/components/areas/page-block-controls'
 import { InlineAreaField } from '@/components/areas/inline-area-field'
 import {
-  defaultAreaPageSettings,
   PageCustomizeMenu,
   PageSettingsPanel,
 } from '@/components/areas/page-settings-panel'
+import { defaultAreaPageSettings } from '@/components/areas/page-settings-defaults'
 import { cn } from '@/lib/utils'
 
 interface AreaScreenData {
@@ -205,10 +175,6 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
     (block) => !page?.hiddenBlockIds?.includes(block.id),
   )
   const pageSettings = { ...defaultAreaPageSettings, ...page?.settings }
-
-  useEffect(() => {
-    if (!pageId && data?.pages[0]) setPageId(data.pages[0].id)
-  }, [data?.pages, pageId])
 
   useEffect(() => {
     const refreshArea = () => void refreshAreaData()
@@ -903,7 +869,7 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                     ) : null}
                     {sectionBlocks(section).map((block) => (
                       <div key={block.id} className="min-w-0">
-                        <SortableBlock
+                        <SortableAreaBlock
                           block={block}
                           data={data}
                           pageSettings={pageSettings}
@@ -989,7 +955,7 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   )
 }
 
-function SortableBlock({
+export function SortableBlock({
   block,
   data,
   pageSettings,
@@ -1705,12 +1671,4 @@ function usePanelEscape(onClose: () => void) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onClose])
-}
-
-function LinkIcon({ className }: { className?: string }) {
-  return (
-    <span className={className} aria-hidden="true">
-      ↗
-    </span>
-  )
 }

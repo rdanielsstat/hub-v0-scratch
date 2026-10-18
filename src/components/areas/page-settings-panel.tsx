@@ -1,15 +1,8 @@
 import type { AreaPageSettings, AreaPageSpec, Block } from '@/services/api'
+import { defaultAreaPageSettings } from '@/components/areas/page-settings-defaults'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { usePanelEscape } from '@/components/areas/use-panel-escape'
-
-export const defaultAreaPageSettings: AreaPageSettings = {
-  layout: 'twoColumns',
-  width: 'comfortable',
-  density: 'comfortable',
-  blockStyle: 'cards',
-  showBlockTitles: true,
-}
 
 export function PageCustomizeMenu({
   blocks,

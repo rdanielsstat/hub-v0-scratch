@@ -50,7 +50,9 @@ export function AreaBlockContent({
           showTitle={pageSettings.showBlockTitles}
           plain={pageSettings.blockStyle === 'plain'}
           compact={pageSettings.density === 'compact'}
-          onChangeSpec={(next) => void onSave({ ...block, view: next })}
+          onChangeSpec={(next) => {
+            if (block.type === 'view') void onSave({ ...block, view: next })
+          }}
         />
       ) : block.type === 'collection' && collection ? (
         <Link

@@ -56,6 +56,27 @@ describe('AreaPage', () => {
     expect(document.querySelectorAll('img')).toHaveLength(0)
   })
 
+  it('saves page-specific settings and restores the template defaults', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderArea('/area/home-budget')
+
+    await user.click(await screen.findByRole('button', { name: 'Customize' }))
+    await user.click(screen.getByRole('button', { name: 'Page settings' }))
+    const density = await screen.findByRole('combobox', { name: 'Page density' })
+    await user.selectOptions(density, 'compact')
+    await waitFor(() => expect(density).toHaveValue('compact'))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+
+    await user.click(screen.getByRole('button', { name: 'Customize' }))
+    await user.click(screen.getByRole('button', { name: 'Page settings' }))
+    expect(await screen.findByRole('combobox', { name: 'Page density' })).toHaveValue('compact')
+    await user.click(screen.getByRole('button', { name: 'Reset to template' }))
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Page density' })).toHaveValue('comfortable'))
+    expect(confirm).toHaveBeenCalledOnce()
+    confirm.mockRestore()
+  }, 10000)
+
   it('opens the friendly block picker and supports slash in a text block', async () => {
     const user = userEvent.setup()
     renderArea('/area/spirituality-code')

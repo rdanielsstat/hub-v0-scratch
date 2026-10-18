@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Copy, ExternalLink, MoreHorizontal, X } from 'lucide-react'
 import type { CollectionSchema, EntryDetail, FieldDef, Item } from '@/services/api'
 import { Button } from '@/components/ui/button'
@@ -106,9 +106,49 @@ export function EntryDetailPanel({
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkTarget, setLinkTarget] = useState<'file' | 'linked'>('linked')
   const fileRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
   const latestRef = useRef<HTMLLIElement>(null)
   usePanelEscape(onClose)
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const dialog = dialogRef.current
+    const getFocusableElements = () =>
+      Array.from(
+        dialog?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => element.getAttribute('aria-hidden') !== 'true')
+    const focusable = getFocusableElements()
+    focusable[0]?.focus()
+
+    const trapFocus = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const elements = getFocusableElements()
+      const first = elements[0]
+      const last = elements.at(-1)
+      const activeIndex = elements.indexOf(document.activeElement as HTMLElement)
+      if (!first || !last) return
+      if (event.shiftKey && activeIndex <= 0) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && activeIndex === -1) {
+        event.preventDefault()
+        first.focus()
+      } else if (!event.shiftKey && activeIndex === elements.length - 1) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', trapFocus)
+    return () => {
+      document.removeEventListener('keydown', trapFocus)
+      if (previouslyFocused?.isConnected) previouslyFocused.focus()
+    }
+  }, [])
 
   const orderedIds = keyFieldOrder[collection.id] ?? collection.fields.slice(0, 3).map((field) => field.id)
   const keyFields = orderedIds.map((id) => collection.fields.find((field) => field.id === id)).filter((field): field is FieldDef => Boolean(field)).slice(0, 3)
@@ -159,7 +199,7 @@ export function EntryDetailPanel({
   }
 
   return (
-    <aside role="dialog" aria-modal="true" aria-label={`${item.title} details`} className={`fixed inset-0 z-40 flex flex-col border-l border-border bg-background shadow-2xl sm:inset-y-0 sm:left-auto ${fullPage ? 'sm:right-0 sm:w-full' : 'sm:right-0 sm:w-full sm:max-w-[480px]'}`}>
+    <aside ref={dialogRef} role="dialog" aria-modal="true" aria-label={`${item.title} details`} className={`fixed inset-0 z-40 flex flex-col border-l border-border bg-background shadow-2xl sm:inset-y-0 sm:left-auto ${fullPage ? 'sm:right-0 sm:w-full' : 'sm:right-0 sm:w-full sm:max-w-[480px]'}`}>
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
         <Button variant="ghost" size="sm" onClick={onOpenFull}><ExternalLink aria-hidden="true" />{fullPage ? 'Panel view' : 'Open full page'}</Button>
         <div className="flex items-center gap-1">
@@ -197,7 +237,7 @@ export function EntryDetailPanel({
           {detail.files.length ? <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">{detail.files.map((file) => <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">{file.url && file.type.startsWith('image/') ? <img src={file.url} alt={file.name} className="size-12 rounded object-cover" /> : <span className="grid size-10 place-items-center rounded bg-muted text-xs text-muted-foreground">{file.type}</span>}<span className="min-w-0 flex-1 break-words">{file.name}</span><span className="text-xs text-muted-foreground">{file.type} · {Math.max(1, Math.round(file.size / 1024))} KB · {formatLocalDate(file.addedAt, true)}</span></li>)}</ul> : <p className="text-sm text-muted-foreground">No files yet.</p>}
           {linkOpen ? <div className="mt-2 flex gap-2"><Input aria-label="Website link" placeholder="https://example.com" value={link} onChange={(event) => setLink(event.target.value)} onKeyDown={(event) => submitOnEnter(event, addWebsite)} /><Button variant="outline" onClick={addWebsite}>Add link</Button></div> : null}
         </section>
-        <section id="entry-links" className="mb-5 scroll-mt-4"><h2 className="mb-2 text-sm font-medium">Linked items</h2>{linked.length ? <ul className="flex flex-col gap-2">{linked.map((name) => <li key={name} className="rounded-lg border border-border px-3 py-2 text-sm">{name}</li>)}</ul> : <p className="text-sm text-muted-foreground">No linked items yet.</p>}<Button variant="ghost" size="sm" className="mt-1" onClick={() => { setLinkTarget('linked'); setLinkOpen(true) }}>+ Add link</Button></section>
+        <section id="entry-links" className="mb-5 scroll-mt-4"><h2 className="mb-2 text-sm font-medium">Linked items</h2>{linked.length ? <ul className="flex flex-col gap-2">{linked.map((name) => <li key={name} className="min-w-0 rounded-lg border border-border px-3 py-2 text-sm">{/^https?:\/\//i.test(name) ? <a href={name} target="_blank" rel="noreferrer" className="break-all text-primary underline-offset-4 hover:underline">{name}</a> : <span className="break-words">{name}</span>}</li>)}</ul> : <p className="text-sm text-muted-foreground">No linked items yet.</p>}<Button variant="ghost" size="sm" className="mt-1" onClick={() => { setLinkTarget('linked'); setLinkOpen(true) }}>+ Add link</Button></section>
         <section className="pb-4"><div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-medium">Activity</h2>{detail.activity.length > 8 ? <div className="flex gap-2 text-xs"><button type="button" className="text-muted-foreground underline" onClick={() => topRef.current?.scrollIntoView({ behavior: 'smooth' })}>Jump to top</button><button type="button" className="text-muted-foreground underline" onClick={() => latestRef.current?.scrollIntoView({ behavior: 'smooth' })}>Latest</button></div> : null}</div>{detail.activity.length ? <ol className="flex flex-col gap-3">{detail.activity.map((entry) => <li key={entry.id} className="border-l border-border pl-3"><p className="text-sm">{entry.text}</p><time className="text-xs text-muted-foreground">{formatLocalDate(entry.createdAt, true)}</time></li>)}<li ref={latestRef} aria-label="Latest activity" /></ol> : <p className="text-sm text-muted-foreground">No activity yet.</p>}</section>
       </div>
       <form className="absolute inset-x-0 bottom-0 flex gap-2 border-t border-border bg-background p-3" onSubmit={(event) => { event.preventDefault(); addNote() }}>

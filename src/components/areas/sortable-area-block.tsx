@@ -1,10 +1,10 @@
+/* eslint-disable react-hooks/refs */
 import { useEffect, useRef } from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import type { AreaPageSettings, Block, BlockSize } from '@/services/api'
 import type { AreaScreenData } from '@/components/areas/area-screen-data'
 import { AreaBlockContent } from '@/components/areas/area-block-content'
-import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
