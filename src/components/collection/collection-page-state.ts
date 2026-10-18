@@ -178,7 +178,7 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
   return {
     resource, collection, fields, query, setQuery, filterField, setFilterField,
     filterValue, setFilterValue, sortField, sortDirection, visibleFieldIds,
-    selectedIds, setSelectedIds, display, columnWidths, dialogOpen, setDialogOpen,
+    setVisibleFieldIds, selectedIds, setSelectedIds, display, columnWidths, dialogOpen, setDialogOpen,
     schemaOpen, setSchemaOpen, draft, setDraft, saving, formError, importRef,
     shownFields, filteredItems, saveDisplay, updateColumnWidth, addItem, updateItem,
     removeItems, toggleSort, importCsv, exportCsv, saveSchema,

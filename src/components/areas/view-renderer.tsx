@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Image as ImageIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -13,7 +13,7 @@ import type {
 import { aggregateView, applyViewSpec, groupView } from '@/lib/view-spec'
 import { Card } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
-import { FieldValue, formatFieldValue } from '@/lib/field-format'
+import { FieldValue } from '@/lib/field-format'
 import { formatLocalDate } from '@/lib/local-date'
 
 interface Props {
@@ -57,37 +57,39 @@ export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
 
   return (
     <Card className="group relative h-full min-w-0 p-4">
-      <div className="mb-3 flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2">
-        <h3 className="min-w-0 flex-1 basis-2/3 break-words text-sm font-medium leading-snug">
+      <div className="mb-3 flex min-w-0 flex-col gap-2">
+        <h3 className="w-full min-w-0 whitespace-normal break-words text-sm font-medium leading-snug">
           {spec.title}
         </h3>
-        {areaId ? (
-          <Link
-            to={`/area/${areaId}/collection/${spec.collectionId}`}
-            className="ml-auto shrink-0 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Open
-          </Link>
-        ) : null}
-        {spec.period && onChangeSpec ? (
-          <Select
-            aria-label={`${spec.title} period`}
-            value={spec.period}
-            onChange={(event) =>
-              onChangeSpec({
-                ...spec,
-                period: event.target.value as ViewPeriod,
-              })
-            }
-            className="h-8 w-36 shrink-0 border-0 bg-transparent px-3 text-xs text-muted-foreground focus-visible:ring-1"
-          >
-            {Object.entries(periodLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        ) : null}
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          {areaId ? (
+            <Link
+              to={`/area/${areaId}/collection/${spec.collectionId}`}
+              className="min-w-0 truncate rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Open
+            </Link>
+          ) : <span />}
+          {spec.period && onChangeSpec ? (
+            <Select
+              aria-label={`${spec.title} period`}
+              value={spec.period}
+              onChange={(event) =>
+                onChangeSpec({
+                  ...spec,
+                  period: event.target.value as ViewPeriod,
+                })
+              }
+              className="h-8 w-36 shrink-0 border-0 bg-transparent pl-3 pr-8 text-xs text-muted-foreground focus-visible:ring-1"
+            >
+              {Object.entries(periodLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+        </div>
       </div>
       <Renderer
         spec={{ ...spec, display: effectiveDisplay }}
@@ -144,8 +146,25 @@ function ChartView({ spec, groups }: RenderProps) {
 }
 
 function TableView({ visibleItems, columns }: RenderProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [fieldLimit, setFieldLimit] = useState(columns.length)
+  useEffect(() => {
+    const element = scrollRef.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const updateLimit = () => {
+      const availableWidth = element.clientWidth
+      const fittingFields = Math.max(1, Math.floor((availableWidth - 90) / 100))
+      setFieldLimit(Math.min(columns.length, fittingFields))
+    }
+    updateLimit()
+    const observer = new ResizeObserver(updateLimit)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [columns.length])
+  const fittedColumns = columns.slice(0, fieldLimit)
   return (
     <div
+      ref={scrollRef}
       tabIndex={0}
       aria-label="Collection entries"
       className="max-h-72 overflow-y-auto overflow-x-hidden rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -153,9 +172,9 @@ function TableView({ visibleItems, columns }: RenderProps) {
       <table className="w-full table-fixed text-left text-xs">
         <thead className="sticky top-0 bg-card text-muted-foreground">
           <tr>
-            <th className="whitespace-normal break-words py-2 pr-3 font-medium">Name</th>
-            {columns.map((field) => (
-              <th key={field.id} className="whitespace-normal break-words py-2 pr-3 font-medium">
+            <th className="whitespace-normal break-words py-2 pr-2 font-medium">Name</th>
+            {fittedColumns.map((field) => (
+              <th key={field.id} className="whitespace-normal break-words py-2 pr-2 font-medium">
                 {field.name}
               </th>
             ))}
@@ -164,11 +183,11 @@ function TableView({ visibleItems, columns }: RenderProps) {
         <tbody>
           {visibleItems.map((item) => (
             <tr key={item.id} className="border-t border-border/70">
-              <td className="whitespace-normal break-words py-2 pr-3 font-medium">
+              <td className="whitespace-normal break-words py-2 pr-2 font-medium">
                 {item.title}
               </td>
-              {columns.map((field) => (
-                <td key={field.id} className="whitespace-normal break-words py-2 pr-3 text-muted-foreground">
+              {fittedColumns.map((field) => (
+                <td key={field.id} className="whitespace-normal break-words py-2 pr-2 text-muted-foreground">
                   <FieldValue value={item.data[field.id]} field={field} />
                 </td>
               ))}
@@ -200,33 +219,36 @@ function CardsView({ visibleItems, columns }: RenderProps) {
 
 function GalleryView({ visibleItems, columns }: RenderProps) {
   const imageField = columns.find((field) => field.type === 'image')
+  const displayedImages = new Set<string>()
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {visibleItems.map((item) => (
-        <article
-          key={item.id}
-          className="overflow-hidden rounded-lg border border-border"
-        >
-          <div className="grid aspect-[4/3] place-items-center bg-muted">
-            {imageField && typeof item.data[imageField.id] === 'string' ? (
-              <img
-                src={String(item.data[imageField.id])}
-                alt={item.title}
-                className="size-full object-cover"
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-2 px-3 text-center text-xs text-muted-foreground">
-                <ImageIcon aria-hidden="true" className="size-8 opacity-50" />
-                <span className="break-words">{item.title}</span>
-              </div>
-            )}
-          </div>
-          <p className="truncate p-2 text-xs font-medium">{item.title}</p>
-        </article>
-      ))}
+      {visibleItems.map((item) => {
+        const image = imageField ? item.data[imageField.id] : undefined
+        const imageUrl = typeof image === 'string' && image && !displayedImages.has(image) ? image : null
+        if (imageUrl) displayedImages.add(imageUrl)
+        return (
+          <article
+            key={item.id}
+            className="overflow-hidden rounded-lg border border-border"
+          >
+            <div className="grid aspect-[4/3] place-items-center bg-muted">
+              {imageUrl ? (
+                <img src={imageUrl} alt={item.title} className="size-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 px-3 text-center text-xs text-muted-foreground">
+                  <ImageIcon aria-hidden="true" className="size-8 opacity-50" />
+                  <span className="break-words">{item.title}</span>
+                </div>
+              )}
+            </div>
+            <p className="break-words p-2 text-xs font-medium">{item.title}</p>
+          </article>
+        )
+      })}
     </div>
   )
 }
+
 
 function ListView({ visibleItems }: RenderProps) {
   return (

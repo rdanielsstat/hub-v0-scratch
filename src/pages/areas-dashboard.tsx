@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Activity,
@@ -139,6 +139,11 @@ export function AreasDashboardPage() {
     'areas-list-preferences',
   )
   const preferences = preferencesResource.data ?? defaultPreferences
+  useEffect(() => {
+    const refreshAreas = () => void resource.refresh()
+    window.addEventListener('hub:areas-changed', refreshAreas)
+    return () => window.removeEventListener('hub:areas-changed', refreshAreas)
+  }, [resource.refresh])
   const [createOpen, setCreateOpen] = useState(false)
   const [startFrom, setStartFrom] = useState<AreaStartFrom | null>(null)
   const [name, setName] = useState('')
@@ -167,6 +172,7 @@ export function AreasDashboardPage() {
     setCreateError('')
     try {
       const area = await areasApi.createArea({ name: name.trim(), startFrom })
+      window.dispatchEvent(new Event('hub:areas-changed'))
       setCreateOpen(false)
       setName('')
       setStartFrom(null)

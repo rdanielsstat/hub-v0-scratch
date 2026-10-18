@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, Check, ChevronDown, Trash2 } from 'lucide-react'
 import type { FieldDef, Item, ItemValue } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { FieldValue, formatFieldValue } from '@/lib/field-format'
+import { formatFieldValue } from '@/lib/field-format'
 
 export interface CollectionTableProps {
   items: Item[]
@@ -140,6 +141,13 @@ function EditableCell({
         committed.current = false
         setEditing(true)
       }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          committed.current = false
+          setEditing(true)
+        }
+      }}
     >
       {field?.type === 'checkbox' ? (
         rawValue === true ? <Check aria-label="Checked" className="size-4" /> : null
@@ -216,10 +224,32 @@ export function CollectionTable({
     { id: '__delete', width: 44 },
   ]
   const [expandedIds, setExpandedIds] = useState<string[]>([])
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const cardScrollRef = useRef<HTMLDivElement>(null)
+  const tableVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => tableScrollRef.current,
+    estimateSize: () => 72,
+    getItemKey: (index) => items[index].id,
+    overscan: 12,
+  })
+  const cardVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => cardScrollRef.current,
+    estimateSize: (index) => {
+      const item = items[index]
+      const expanded = item ? expandedIds.includes(item.id) : false
+      return expanded ? 192 + Math.max(0, fields.length - 4) * 32 : 192
+    },
+    getItemKey: (index) => items[index].id,
+    overscan: 4,
+  })
+  const tableRows = tableVirtualizer.getVirtualItems()
+  const cardRows = cardVirtualizer.getVirtualItems()
   return (
     <>
-      <div tabIndex={0} aria-label="Collection table" className="hidden max-h-[65vh] overflow-auto rounded-lg border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:block">
-        <table className="w-full table-fixed text-left text-sm">
+      <div ref={tableScrollRef} tabIndex={0} aria-label="Collection table" className="hidden max-h-[65vh] overflow-auto rounded-lg border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:block">
+        <table aria-rowcount={items.length + 1} className="w-full table-fixed text-left text-sm">
           <colgroup>{columns.map((column) => <col key={column.id} style={{ width: column.width }} />)}</colgroup>
           <thead className="sticky top-0 z-10 bg-muted/90 text-xs text-muted-foreground">
             <tr>
@@ -238,38 +268,59 @@ export function CollectionTable({
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-t border-border/70">
-                <td className="px-2 py-1 text-center"><input type="checkbox" aria-label={`Select ${item.title}`} checked={selectedIds.includes(item.id)} onChange={(event) => onSelect(item.id, event.target.checked)} /></td>
-                <td className="px-2 py-1"><EditableCell item={item} field={null} onSave={onSave} /></td>
-                {fields.map((field) => <td key={field.id} className="px-2 py-1"><EditableCell item={item} field={field} onSave={onSave} /></td>)}
-                <td className="px-1 py-1 text-center"><Button variant="ghost" size="icon-sm" aria-label={`Delete ${item.title}`} onClick={() => onDelete(item.id)}><Trash2 /></Button></td>
-              </tr>
-            ))}
+            {tableRows[0]?.start ? (
+              <tr aria-hidden="true"><td colSpan={columns.length} style={{ height: tableRows[0].start }} /></tr>
+            ) : null}
+            {tableRows.map((virtualRow) => {
+              const item = items[virtualRow.index]
+              return (
+                <tr
+                  key={item.id}
+                  data-index={virtualRow.index}
+                  className="border-t border-border/70"
+                >
+                  <td className="px-2 py-1 text-center"><input type="checkbox" aria-label={`Select ${item.title}`} checked={selectedIds.includes(item.id)} onChange={(event) => onSelect(item.id, event.target.checked)} /></td>
+                  <td className="px-2 py-1"><EditableCell item={item} field={null} onSave={onSave} /></td>
+                  {fields.map((field) => <td key={field.id} className="px-2 py-1"><EditableCell item={item} field={field} onSave={onSave} /></td>)}
+                  <td className="px-1 py-1 text-center"><Button variant="ghost" size="icon-sm" aria-label={`Delete ${item.title}`} onClick={() => onDelete(item.id)}><Trash2 /></Button></td>
+                </tr>
+              )
+            })}
+            {tableRows.length ? (
+              <tr aria-hidden="true"><td colSpan={columns.length} style={{ height: Math.max(0, tableVirtualizer.getTotalSize() - (tableRows[tableRows.length - 1]?.end ?? 0)) }} /></tr>
+            ) : null}
           </tbody>
         </table>
       </div>
-      <div className="flex flex-col gap-2 md:hidden" aria-label="Collection entries as cards">
-        {items.map((item) => {
-          const expanded = expandedIds.includes(item.id)
-          const visibleFields = expanded ? fields : fields.slice(0, 4)
-          return (
-            <article key={item.id} className="min-w-0 rounded-xl border border-border bg-card p-3">
-              <div className="mb-2 flex min-w-0 items-start gap-2">
-                <input type="checkbox" aria-label={`Select ${item.title}`} checked={selectedIds.includes(item.id)} onChange={(event) => onSelect(item.id, event.target.checked)} />
-                <div className="min-w-0 flex-1"><EditableCell item={item} field={null} onSave={onSave} /></div>
-                <Button variant="ghost" size="icon-sm" aria-label={`Delete ${item.title}`} onClick={() => onDelete(item.id)}><Trash2 /></Button>
-              </div>
-              {visibleFields.map((field) => (
-                <div key={field.id} className="grid min-w-0 grid-cols-[minmax(0,6rem)_minmax(0,1fr)] items-start gap-2 border-t border-border/60 py-1.5">
-                  <span className="break-words text-xs text-muted-foreground">{field.name}</span>
-                  <div className="min-w-0"><EditableCell item={item} field={field} onSave={onSave} /></div>
+      <div ref={cardScrollRef} tabIndex={0} aria-label="Collection entries as cards" className="max-h-[65vh] overflow-y-auto rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden">
+        <div style={{ height: cardVirtualizer.getTotalSize(), position: 'relative' }}>
+          {cardRows.map((virtualRow) => {
+            const item = items[virtualRow.index]
+            const expanded = expandedIds.includes(item.id)
+            const visibleFields = expanded ? fields : fields.slice(0, 4)
+            return (
+              <article
+                key={item.id}
+                data-index={virtualRow.index}
+                className="absolute left-0 top-0 min-w-0 w-full rounded-xl border border-border bg-card p-3"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <div className="mb-2 flex min-w-0 items-start gap-2">
+                  <input type="checkbox" aria-label={`Select ${item.title}`} checked={selectedIds.includes(item.id)} onChange={(event) => onSelect(item.id, event.target.checked)} />
+                  <div className="min-w-0 flex-1"><EditableCell item={item} field={null} onSave={onSave} /></div>
+                  <Button variant="ghost" size="icon-sm" aria-label={`Delete ${item.title}`} onClick={() => onDelete(item.id)}><Trash2 /></Button>
                 </div>
-              ))}
-              {fields.length > 4 ? <button type="button" aria-expanded={expanded} className="mt-2 text-xs font-medium text-primary" onClick={() => setExpandedIds((current) => expanded ? current.filter((id) => id !== item.id) : [...current, item.id])}>{expanded ? 'Show fewer' : 'Show all'}</button> : null}
-            </article>
-          )
-        })}
+                {visibleFields.map((field) => (
+                  <div key={field.id} className="grid min-w-0 grid-cols-[minmax(0,6rem)_minmax(0,1fr)] items-start gap-2 border-t border-border/60 py-1.5">
+                    <span className="break-words text-xs text-muted-foreground">{field.name}</span>
+                    <div className="min-w-0"><EditableCell item={item} field={field} onSave={onSave} /></div>
+                  </div>
+                ))}
+                {fields.length > 4 ? <button type="button" aria-expanded={expanded} className="mt-2 text-xs font-medium text-primary" onClick={() => setExpandedIds((current) => expanded ? current.filter((id) => id !== item.id) : [...current, item.id])}>{expanded ? 'Show fewer' : 'Show all'}</button> : null}
+              </article>
+            )
+          })}
+        </div>
       </div>
     </>
   )

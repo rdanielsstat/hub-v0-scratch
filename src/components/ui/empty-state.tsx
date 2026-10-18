@@ -10,9 +10,9 @@ interface EmptyStateProps {
   tone?: 'neutral' | 'danger'
   /**
    * 'page': this *is* the page's content (not-found, project-detail's
-   * not-found/load-error branches) — larger title, no surrounding box.
+   * not-found/load-error branches); larger title, no surrounding box.
    * 'panel': a section embedded in a page that already has its own
-   * heading (dashboard's empty/load-error states) — smaller title,
+   * heading (dashboard's empty/load-error states); smaller title,
    * dashed-border box.
    */
   variant?: 'page' | 'panel'

@@ -42,7 +42,6 @@ interface Props {
 }
 
 let lastAreaCollection = ''
-let lastCaptureTarget: 'project' | 'area' = 'project'
 
 const empty = {
   name: '',
@@ -74,7 +73,7 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
   const [targetOverride, setTargetOverride] = useState<
     'project' | 'area' | null
   >(null)
-  const target = targetOverride ?? (defaultAreaId ? 'area' : lastCaptureTarget)
+  const target = targetOverride ?? (defaultAreaId ? 'area' : 'project')
   const [areaId, setAreaId] = useState(defaultAreaId ?? '')
   const activeAreaId =
     defaultAreaId && targetOverride === null ? defaultAreaId : areaId
@@ -97,11 +96,11 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
     collections.find((collection) => collection.id === collectionId) ??
     collections[0]
   const quickFields = selectedCollection ? quickFieldsFor(selectedCollection) : []
+  const [form, setForm] = useState(empty)
+  const [expanded, setExpanded] = useState(false)
   const visibleAreaFields = expanded
     ? (selectedCollection?.fields ?? [])
     : quickFields
-  const [form, setForm] = useState(empty)
-  const [expanded, setExpanded] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   function reset() {
@@ -122,7 +121,7 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
   async function handleAreaSubmit() {
     if (!selectedCollection || !activeAreaId || submitting) return
     setSubmitting(true)
-    lastCaptureTarget = 'area'
+
     setAreaError('')
     try {
       const data: Record<string, ItemValue> = {}
@@ -223,7 +222,6 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
             aria-pressed={target === 'project'}
             onClick={() => {
               setTargetOverride('project')
-              lastCaptureTarget = 'project'
             }}
           >
             New project
@@ -238,7 +236,7 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
                 setAreaId(defaultAreaId)
                 setCollectionId('')
               }
-              lastCaptureTarget = 'area'
+
             }}
           >
             Add to an area

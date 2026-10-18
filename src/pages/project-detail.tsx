@@ -86,7 +86,7 @@ export function ProjectDetailPage() {
 
   if (!project || !id) {
     // Distinguish "the load itself failed" from "this id genuinely
-    // doesn't exist" — same underlying bug the dashboard's load-error
+    // doesn't exist"; same underlying bug the dashboard's load-error
     // state fixes, surfaced here too since it's the same store `error`.
     if (error) {
       return (

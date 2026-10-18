@@ -15,7 +15,6 @@ import {
   GripVertical,
   Plus,
   X,
-  Sparkles,
 } from 'lucide-react'
 import {
   closestCenter,
@@ -95,13 +94,14 @@ export function AppSidebar({
     const refreshSavedFilters = () => {
       void savedFiltersApi.list().then((filters) => setSavedFilters(filters))
     }
+    const refreshAreas = () => void areasState.refresh()
     window.addEventListener('hub:saved-filters-changed', refreshSavedFilters)
-    return () =>
-      window.removeEventListener(
-        'hub:saved-filters-changed',
-        refreshSavedFilters,
-      )
-  }, [setSavedFilters])
+    window.addEventListener('hub:areas-changed', refreshAreas)
+    return () => {
+      window.removeEventListener('hub:saved-filters-changed', refreshSavedFilters)
+      window.removeEventListener('hub:areas-changed', refreshAreas)
+    }
+  }, [areasState.refresh, setSavedFilters])
   const areas = areasState.data ?? emptyAreas
   const saved = savedState.data ?? []
   const groups = groupsState.data ?? []
@@ -717,6 +717,7 @@ function AreaNav({
 }) {
   const sortable = useSortable({ id: `area:${area.id}` })
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpensUp, setMenuOpensUp] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const style = {
@@ -750,6 +751,16 @@ function AreaNav({
     callback()
   }
 
+  function toggleMenu() {
+    if (menuOpen) {
+      setMenuOpen(false)
+      return
+    }
+    const bottom = triggerRef.current?.getBoundingClientRect().bottom ?? 0
+    setMenuOpensUp(bottom + 300 > window.innerHeight)
+    setMenuOpen(true)
+  }
+
   return (
     <div
       ref={sortable.setNodeRef}
@@ -780,7 +791,7 @@ function AreaNav({
           aria-label={`Options for ${area.name}`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
+          onClick={toggleMenu}
           className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span aria-hidden="true">···</span>
@@ -788,7 +799,10 @@ function AreaNav({
         {menuOpen ? (
           <div
             aria-label={`${area.name} options`}
-            className="absolute right-0 top-8 z-30 flex w-48 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-sidebar-border bg-sidebar p-1 shadow-lg"
+            className={cn(
+              'absolute right-0 z-30 flex max-h-[calc(100dvh-2rem)] w-48 max-w-[calc(100vw-2rem)] flex-col overflow-y-auto overscroll-contain rounded-lg border border-sidebar-border bg-sidebar p-1 shadow-lg',
+              menuOpensUp ? 'bottom-full mb-1' : 'top-8',
+            )}
           >
             <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(onRename)}>Rename</button>
             <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(onPin)}>{area.pinned ? 'Unpin' : 'Pin'}</button>

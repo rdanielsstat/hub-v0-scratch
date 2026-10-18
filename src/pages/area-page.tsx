@@ -578,6 +578,7 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
       resource.setData((previous) =>
         previous ? { ...previous, area: updated } : previous,
       )
+      window.dispatchEvent(new Event('hub:areas-changed'))
       setSaveError('')
     } catch {
       setSaveError('Could not save area settings. Try again.')

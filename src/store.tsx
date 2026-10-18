@@ -17,7 +17,7 @@ import { reportError, toUserMessage } from '@/lib/errors'
 /**
  * Write convention: pessimistic. Every write waits for the API to
  * confirm before `projects` state changes, so the store's state is
- * always what the backend actually has — never a locally-assumed change
+ * always what the backend actually has, never a locally-assumed change
  * that might not have saved. On failure, state is simply never touched,
  * a toast tells the user, and the rejection is re-thrown so the calling
  * component can revert any of its own local draft state (see

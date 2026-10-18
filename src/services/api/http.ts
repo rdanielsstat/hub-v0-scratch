@@ -14,7 +14,7 @@ type UnauthorizedHandler = () => void
 
 /**
  * Fires when a request comes back 401 (the session cookie expired or is
- * invalid) — the app uses this to log the user out and bounce them to
+ * invalid); the app uses this to log the user out and bounce them to
  * login, rather than leaving the UI stuck on a failed request. Requests
  * made with ignoreUnauthorized never fire it.
  */

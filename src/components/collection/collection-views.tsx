@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowUp, Image as ImageIcon, Plus, X } from 'lucide-react'
-import type { FieldDef, Item, ItemValue, CollectionSchema } from '@/services/api'
+import type { FieldDef, Item, CollectionSchema } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -20,26 +20,33 @@ export function EntryView({
   fields: FieldDef[]
 }) {
   const imageField = fields.find((field) => field.type === 'image')
-  if (mode === 'gallery')
+  if (mode === 'gallery') {
+    const displayedImages = new Set<string>()
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {items.map((item) => (
-          <article key={item.id} className="overflow-hidden rounded-xl border border-border">
-            <div className="grid aspect-[4/3] place-items-center bg-muted">
-              {imageField && item.data[imageField.id] ? (
-                <img src={String(item.data[imageField.id])} alt={item.title} className="size-full object-cover" />
-              ) : (
-                <div className="flex flex-col items-center gap-2 px-3 text-center text-sm text-muted-foreground">
-                  <ImageIcon aria-hidden="true" className="size-8 opacity-50" />
-                  <span className="break-words">{item.title}</span>
-                </div>
-              )}
-            </div>
-            <h2 className="break-words p-3 text-sm font-medium">{item.title}</h2>
-          </article>
-        ))}
+        {items.map((item) => {
+          const image = imageField ? item.data[imageField.id] : undefined
+          const imageUrl = typeof image === 'string' && image && !displayedImages.has(image) ? image : null
+          if (imageUrl) displayedImages.add(imageUrl)
+          return (
+            <article key={item.id} className="overflow-hidden rounded-xl border border-border">
+              <div className="grid aspect-[4/3] place-items-center bg-muted">
+                {imageUrl ? (
+                  <img src={imageUrl} alt={item.title} className="size-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 px-3 text-center text-sm text-muted-foreground">
+                    <ImageIcon aria-hidden="true" className="size-8 opacity-50" />
+                    <span className="break-words">{item.title}</span>
+                  </div>
+                )}
+              </div>
+              <h2 className="break-words p-3 text-sm font-medium">{item.title}</h2>
+            </article>
+          )
+        })}
       </div>
     )
+  }
   if (mode === 'timeline') {
     const dateField = fields.find((field) => field.type === 'date' || field.type === 'datetime')
     return (
