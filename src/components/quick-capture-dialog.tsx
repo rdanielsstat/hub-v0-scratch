@@ -25,6 +25,8 @@ import {
 } from '@/services/api'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { cn } from '@/lib/utils'
+import { QuickCaptureField } from '@/components/collection/quick-capture-field'
+import { localDateString } from '@/lib/local-date'
 import {
   DESCRIPTION_MAX_LENGTH,
   NEXT_ACTION_MAX_LENGTH,
@@ -52,6 +54,18 @@ const empty = {
   excitement: 3,
   effort: 3,
   potential: 3,
+}
+
+const quickFieldsFor = (collection: CollectionSchema) => {
+  const fields = collection.fields
+  const titleField = fields.find((field) => field.type === 'text') ?? fields[0]
+  const preferred = [
+    titleField,
+    fields.find((field) => field.id === 'amount' || /amount|total|price/i.test(field.name)),
+    fields.find((field) => field.id === 'category' || /category/i.test(field.name)),
+    fields.find((field) => field.type === 'date'),
+  ].filter((field): field is NonNullable<typeof field> => Boolean(field))
+  return [...new Map(preferred.map((field) => [field.id, field])).values()].slice(0, 4)
 }
 
 export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
@@ -82,6 +96,10 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
   const selectedCollection =
     collections.find((collection) => collection.id === collectionId) ??
     collections[0]
+  const quickFields = selectedCollection ? quickFieldsFor(selectedCollection) : []
+  const visibleAreaFields = expanded
+    ? (selectedCollection?.fields ?? [])
+    : quickFields
   const [form, setForm] = useState(empty)
   const [expanded, setExpanded] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -111,7 +129,7 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
       for (const field of selectedCollection.fields) {
         const value =
           areaDraft[field.id] ??
-          (field.type === 'date' ? new Date().toISOString().slice(0, 10) : '')
+          (field.type === 'date' ? localDateString() : '')
         if (
           field.type === 'number' ||
           field.type === 'currency' ||
@@ -126,20 +144,22 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
             .filter(Boolean)
         else data[field.id] = value
       }
-      const firstValue = Object.values(data).find(
-        (value) => value !== '' && value !== null && value !== undefined,
-      )
+      const titleField =
+        selectedCollection.fields.find((field) => field.type === 'text') ??
+        selectedCollection.fields[0]
+      const titleValue = titleField ? data[titleField.id] : undefined
+      const dateField = selectedCollection.fields.find((field) => field.type === 'date')
+      const occurredAt = dateField ? String(data[dateField.id] ?? localDateString()) : localDateString()
       await collectionsApi.createItem({
         areaId: activeAreaId,
         collectionId: selectedCollection.id,
-        title:
-          firstValue === undefined
-            ? 'Untitled item'
-            : Array.isArray(firstValue)
-              ? firstValue.join(', ')
-              : String(firstValue),
+        title: titleValue === undefined || titleValue === ''
+          ? 'Untitled item'
+          : Array.isArray(titleValue)
+            ? titleValue.join(', ')
+            : String(titleValue),
         type: selectedCollection.id,
-        occurredAt: new Date().toISOString(),
+        occurredAt,
         data,
       })
       lastAreaCollection = selectedCollection.id
@@ -187,7 +207,9 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
     <Dialog open={open} onClose={handleClose} title="Quick capture">
       <DialogHeader
         title="Quick capture"
-        description="Get it out of your head. Only a name is required."
+        description={target === 'project'
+          ? 'Get it out of your head. Only a name is required.'
+          : 'Add a quick entry to an area with only the key fields in view.'}
       />
       <DialogBody className="flex flex-col gap-4">
         <div
@@ -222,9 +244,8 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
             Add to an area
           </Button>
         </div>
-        <div
-          className={target === 'project' ? 'flex flex-col gap-4' : 'hidden'}
-        >
+        {target === 'project' ? (
+          <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="qc-name">Name</Label>
             <Input
@@ -351,7 +372,8 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
               </div>
             </div>
           ) : null}
-        </div>
+          </div>
+        ) : null}
         {target === 'area' ? (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -413,37 +435,32 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
                 This area has no collections yet.
               </p>
             ) : null}
-            {selectedCollection?.fields.map((field) => (
+            {visibleAreaFields.map((field) => (
               <label key={field.id} className="flex flex-col gap-1.5 text-sm">
                 <Label htmlFor={`qc-area-field-${field.id}`}>
-                  {field.name}
+                  {field.name}{field.unit ? ` (${field.unit})` : ''}
                 </Label>
-                <Input
+                <QuickCaptureField
                   id={`qc-area-field-${field.id}`}
-                  type={
-                    field.type === 'date'
-                      ? 'date'
-                      : field.type === 'number' ||
-                          field.type === 'currency' ||
-                          field.type === 'duration'
-                        ? 'number'
-                        : 'text'
-                  }
-                  value={
-                    areaDraft[field.id] ??
-                    (field.type === 'date'
-                      ? new Date().toISOString().slice(0, 10)
-                      : '')
-                  }
-                  onChange={(event) =>
-                    setAreaDraft((current) => ({
-                      ...current,
-                      [field.id]: event.target.value,
-                    }))
+                  field={field}
+                  value={areaDraft[field.id] ?? (field.type === 'date' ? localDateString() : '')}
+                  onChange={(value) =>
+                    setAreaDraft((current) => ({ ...current, [field.id]: value }))
                   }
                 />
               </label>
             ))}
+            {selectedCollection && selectedCollection.fields.length > quickFields.length ? (
+              <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => setExpanded((current) => !current)}
+                className="flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} />
+                {expanded ? 'Fewer fields' : 'More fields'}
+              </button>
+            ) : null}
             {areaError ? (
               <p role="alert" className="text-sm text-destructive">
                 {areaError}

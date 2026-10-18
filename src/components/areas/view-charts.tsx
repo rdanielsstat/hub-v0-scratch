@@ -3,7 +3,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Line,
   LineChart,
   Pie,
@@ -75,7 +74,6 @@ export default function ViewCharts({ display, groups, title }: Props) {
               <Tooltip
                 formatter={(value) => numberFormat.format(Number(value))}
               />
-              {values.length > 1 ? <Legend /> : null}
             </PieChart>
           ) : display === 'line' ? (
             <LineChart

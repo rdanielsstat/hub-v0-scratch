@@ -1,9 +1,11 @@
 import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Image as ImageIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type {
   FieldDef,
   Item,
+  ItemValue,
   ViewDisplay,
   ViewPeriod,
   ViewSpec,
@@ -11,6 +13,8 @@ import type {
 import { aggregateView, applyViewSpec, groupView } from '@/lib/view-spec'
 import { Card } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
+import { FieldValue, formatFieldValue } from '@/lib/field-format'
+import { formatLocalDate } from '@/lib/local-date'
 
 interface Props {
   spec: ViewSpec
@@ -26,17 +30,6 @@ const periodLabels: Record<ViewPeriod, string> = {
   '12Months': '12 months',
   allTime: 'All time',
 }
-const format = (value: unknown, field?: FieldDef) => {
-  if (value === null || value === undefined || value === '') return 'Not set'
-  if (field?.type === 'currency' && typeof value === 'number')
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2,
-    }).format(value)
-  return `${String(value)}${field?.unit ? ` ${field.unit}` : ''}`
-}
-
 export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
   const visibleItems = applyViewSpec(spec, items)
   const aggregate = aggregateView(spec, visibleItems)
@@ -64,10 +57,18 @@ export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
 
   return (
     <Card className="group relative h-full min-w-0 p-4">
-      <div className="mb-3 flex min-w-0 items-center gap-3">
-        <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
+      <div className="mb-3 flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2">
+        <h3 className="min-w-0 flex-1 basis-2/3 break-words text-sm font-medium leading-snug">
           {spec.title}
         </h3>
+        {areaId ? (
+          <Link
+            to={`/area/${areaId}/collection/${spec.collectionId}`}
+            className="ml-auto shrink-0 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Open
+          </Link>
+        ) : null}
         {spec.period && onChangeSpec ? (
           <Select
             aria-label={`${spec.title} period`}
@@ -78,7 +79,7 @@ export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
                 period: event.target.value as ViewPeriod,
               })
             }
-            className="h-7 w-auto max-w-32 border-0 bg-transparent px-1 text-xs text-muted-foreground focus-visible:ring-1"
+            className="h-8 w-36 shrink-0 border-0 bg-transparent px-3 text-xs text-muted-foreground focus-visible:ring-1"
           >
             {Object.entries(periodLabels).map(([value, label]) => (
               <option key={value} value={value}>
@@ -86,14 +87,6 @@ export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
               </option>
             ))}
           </Select>
-        ) : null}
-        {areaId ? (
-          <Link
-            to={`/area/${areaId}/collection/${spec.collectionId}`}
-            className="shrink-0 rounded px-1.5 py-1 text-xs text-muted-foreground opacity-100 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-          >
-            Open
-          </Link>
         ) : null}
       </div>
       <Renderer
@@ -120,7 +113,7 @@ function StatView({ spec, aggregate, fields }: RenderProps) {
   const field = fields.find((item) => item.id === spec.aggregate?.fieldId)
   return (
     <p className="text-3xl font-semibold tracking-tight tabular-nums">
-      {format(aggregate, field)}
+      <FieldValue value={aggregate as ItemValue} field={field} />
     </p>
   )
 }
@@ -152,13 +145,17 @@ function ChartView({ spec, groups }: RenderProps) {
 
 function TableView({ visibleItems, columns }: RenderProps) {
   return (
-    <div className="max-h-72 overflow-auto">
-      <table className="w-full text-left text-xs">
+    <div
+      tabIndex={0}
+      aria-label="Collection entries"
+      className="max-h-72 overflow-y-auto overflow-x-hidden rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <table className="w-full table-fixed text-left text-xs">
         <thead className="sticky top-0 bg-card text-muted-foreground">
           <tr>
-            <th className="py-2 pr-3 font-medium">Name</th>
+            <th className="whitespace-normal break-words py-2 pr-3 font-medium">Name</th>
             {columns.map((field) => (
-              <th key={field.id} className="py-2 pr-3 font-medium">
+              <th key={field.id} className="whitespace-normal break-words py-2 pr-3 font-medium">
                 {field.name}
               </th>
             ))}
@@ -167,15 +164,12 @@ function TableView({ visibleItems, columns }: RenderProps) {
         <tbody>
           {visibleItems.map((item) => (
             <tr key={item.id} className="border-t border-border/70">
-              <td className="max-w-40 truncate py-2 pr-3 font-medium">
+              <td className="whitespace-normal break-words py-2 pr-3 font-medium">
                 {item.title}
               </td>
               {columns.map((field) => (
-                <td
-                  key={field.id}
-                  className="max-w-40 truncate py-2 pr-3 text-muted-foreground"
-                >
-                  {format(item.data[field.id], field)}
+                <td key={field.id} className="whitespace-normal break-words py-2 pr-3 text-muted-foreground">
+                  <FieldValue value={item.data[field.id]} field={field} />
                 </td>
               ))}
             </tr>
@@ -193,8 +187,9 @@ function CardsView({ visibleItems, columns }: RenderProps) {
         <article key={item.id} className="rounded-lg border border-border p-3">
           <h4 className="text-sm font-medium">{item.title}</h4>
           {columns.slice(0, 3).map((field) => (
-            <p key={field.id} className="mt-1 text-xs text-muted-foreground">
-              {field.name}: {format(item.data[field.id], field)}
+            <p key={field.id} className="mt-1 break-words text-xs text-muted-foreground">
+              <span>{field.name}: </span>
+              <FieldValue value={item.data[field.id]} field={field} />
             </p>
           ))}
         </article>
@@ -220,9 +215,10 @@ function GalleryView({ visibleItems, columns }: RenderProps) {
                 className="size-full object-cover"
               />
             ) : (
-              <span className="text-xs text-muted-foreground">
-                {item.title}
-              </span>
+              <div className="flex flex-col items-center gap-2 px-3 text-center text-xs text-muted-foreground">
+                <ImageIcon aria-hidden="true" className="size-8 opacity-50" />
+                <span className="break-words">{item.title}</span>
+              </div>
             )}
           </div>
           <p className="truncate p-2 text-xs font-medium">{item.title}</p>
@@ -253,7 +249,7 @@ function TimelineView({ visibleItems }: RenderProps) {
           <div>
             <p className="text-sm font-medium">{item.title}</p>
             <time className="text-xs text-muted-foreground">
-              {new Date(item.occurredAt ?? item.createdAt).toLocaleDateString()}
+              {formatLocalDate(item.occurredAt ?? item.createdAt, (item.occurredAt ?? item.createdAt).includes('T'))}
             </time>
           </div>
         </li>

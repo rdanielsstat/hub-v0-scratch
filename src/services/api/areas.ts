@@ -112,7 +112,7 @@ export const areasApi = {
       itemCount: 0,
       glance: 'A new space ready to shape',
       lastActiveAt: timestamp,
-      icon: input.startFrom === 'journal' ? 'book' : 'sparkles',
+      icon: '',
       coverTone: 'lavender',
       accent: 'primary',
       order: mockAreas.length,

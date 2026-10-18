@@ -10,11 +10,9 @@ import {
   Compass,
   LayoutDashboard,
   ListChecks,
-  Mountain,
   NotebookPen,
   Pin,
   Sparkles,
-  Wallet,
 } from 'lucide-react'
 import {
   closestCenter,
@@ -50,6 +48,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { EmptyState } from '@/components/ui/empty-state'
 import { cn } from '@/lib/utils'
+import { AreaIcon } from '@/components/areas/area-icon'
 
 const templates: Array<{
   id: AreaStartFrom
@@ -113,14 +112,6 @@ const templates: Array<{
   },
 ]
 
-const iconMap = {
-  archive: Archive,
-  wallet: Wallet,
-  activity: Activity,
-  mountain: Mountain,
-  sun: Sparkles,
-  book: BookOpen,
-}
 const defaultPreferences: AreasListPreferences = {
   density: 'comfortable',
   sort: 'manual',
@@ -179,7 +170,7 @@ export function AreasDashboardPage() {
       setCreateOpen(false)
       setName('')
       setStartFrom(null)
-      navigate(`/area/${area.id}`)
+      navigate(`/area/${area.id}`, { state: { editName: true } })
     } catch {
       setCreateError('Could not create this area. Try again.')
     } finally {
@@ -529,7 +520,6 @@ function AreaRow({
   onPin: () => void
 }) {
   const sortable = useSortable({ id: area.id, disabled: !canReorder })
-  const Icon = iconMap[area.icon as keyof typeof iconMap]
   const style = {
     transform: sortable.transform
       ? `translate3d(${sortable.transform.x}px, ${sortable.transform.y}px, 0) scaleX(${sortable.transform.scaleX}) scaleY(${sortable.transform.scaleY})`
@@ -566,16 +556,7 @@ function AreaRow({
           to={`/area/${area.id}`}
           className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span
-            className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"
-            aria-hidden="true"
-          >
-            {Icon ? (
-              <Icon className="size-4" />
-            ) : (
-              <span className="text-base leading-none">{area.icon}</span>
-            )}
-          </span>
+          <AreaIcon name={area.icon} className="size-5 shrink-0 text-primary" />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">
               {area.name}

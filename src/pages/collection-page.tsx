@@ -1,17 +1,8 @@
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   Archive,
-  ArrowDown,
   ArrowLeft,
-  ArrowUp,
   Download,
   Plus,
   Search,
@@ -22,6 +13,7 @@ import {
 } from 'lucide-react'
 import type {
   Area,
+  CollectionPreferences,
   CollectionSchema,
   FieldDef,
   Item,
@@ -40,14 +32,18 @@ import {
   DialogHeader,
 } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { CollectionTable } from '@/components/collection/collection-table'
+import { localDateString } from '@/lib/local-date'
+import { EntryView, FieldInput, SchemaEditor, type DisplayMode } from '@/components/collection/collection-views'
+import { useCollectionPageState } from '@/components/collection/collection-page-state'
 
 interface CollectionData {
   area: Area | null
   collection: CollectionSchema | null
   items: Item[]
+  preferences: CollectionPreferences
 }
-type DisplayMode = 'table' | 'cards' | 'gallery' | 'timeline'
-const dateToday = () => new Date().toISOString().slice(0, 10)
+const dateToday = localDateString
 const valueText = (value: ItemValue | undefined) =>
   Array.isArray(value)
     ? value.join(', ')
@@ -60,41 +56,56 @@ const loadCollection = async (
   areaId: string,
   collectionId: string,
 ): Promise<CollectionData> => {
-  const [area, collection, items] = await Promise.all([
+  const [area, collection, items, preferences] = await Promise.all([
     areasApi.getArea(areaId),
     collectionsApi.getCollection(collectionId),
     collectionsApi.listCollectionItems(collectionId),
+    collectionsApi.getPreferences(collectionId),
   ])
-  return { area, collection, items }
+  return { area, collection, items, preferences }
 }
 
 export function CollectionPage() {
   const { areaId = '', collectionId = '' } = useParams()
-  const loader = useCallback(
-    () => loadCollection(areaId, collectionId),
-    [areaId, collectionId],
-  )
-  const resource = useApiResource(loader, `${areaId}:${collectionId}`)
-  const [query, setQuery] = useState('')
-  const [filterField, setFilterField] = useState('')
-  const [filterValue, setFilterValue] = useState('')
-  const [sortField, setSortField] = useState('')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const [visibleFieldIds, setVisibleFieldIds] = useState<string[] | null>(null)
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [display, setDisplay] = useState<DisplayMode>('table')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [schemaOpen, setSchemaOpen] = useState(false)
-  const [draft, setDraft] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState('')
-  const rowScrollRef = useRef<HTMLDivElement>(null)
-  const mobileScrollRef = useRef<HTMLDivElement>(null)
-  const importRef = useRef<HTMLInputElement>(null)
-  const collection = resource.data?.collection
-  const fields = collection?.fields ?? []
-  const shownFields = fields.filter(
-    (field) => visibleFieldIds === null || visibleFieldIds.includes(field.id),
+  const state = useCollectionPageState(areaId, collectionId)
+  const {
+    resource, collection, fields, query, setQuery, filterField, setFilterField,
+    filterValue, setFilterValue, sortField, sortDirection, visibleFieldIds,
+    selectedIds, setSelectedIds, display, columnWidths, dialogOpen, setDialogOpen,
+    schemaOpen, setSchemaOpen, draft, setDraft, saving, formError, importRef,
+    shownFields, filteredItems, saveDisplay, updateColumnWidth, addItem, updateItem,
+    removeItems, toggleSort, importCsv, exportCsv, saveSchema,
+  } = state
+  useEffect(() => {
+    const preferences = resource.data?.preferences
+    if (!preferences) return
+    setDisplay(preferences.display)
+    setColumnWidths(preferences.columnWidths)
+  }, [collectionId, resource.data?.collection?.id])
+
+  async function saveDisplay(nextDisplay: DisplayMode) {
+    setDisplay(nextDisplay)
+    if (collection)
+      await collectionsApi.savePreferences(collection.id, {
+        display: nextDisplay,
+        columnWidths,
+      })
+  }
+
+  async function updateColumnWidth(fieldId: string, width: number) {
+    if (!collection) return
+    const next = { ...columnWidths, [fieldId]: width }
+    setColumnWidths(next)
+    await collectionsApi.savePreferences(collection.id, {
+      display,
+      columnWidths: next,
+    })
+  }
+
+  const shownFields = fields.filter((field) =>
+    visibleFieldIds === null
+      ? !(collection?.id === 'purchases' && field.id === 'description')
+      : visibleFieldIds.includes(field.id),
   )
 
   const filteredItems = useMemo(() => {
@@ -131,23 +142,6 @@ export function CollectionPage() {
     sortField,
     sortDirection,
   ])
-
-  // TanStack Virtual returns non-memoizable measurement methods by design.
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const virtualizer = useVirtualizer({
-    count: filteredItems.length,
-    getScrollElement: () => rowScrollRef.current,
-    estimateSize: () => 52,
-    overscan: 12,
-    initialRect: { width: 960, height: 600 },
-  })
-  const mobileVirtualizer = useVirtualizer({
-    count: filteredItems.length,
-    getScrollElement: () => mobileScrollRef.current,
-    estimateSize: () => 190,
-    overscan: 8,
-    initialRect: { width: 390, height: 640 },
-  })
 
   async function addItem() {
     if (!collection || saving) return
@@ -337,8 +331,6 @@ export function CollectionPage() {
   const allSelected =
     filteredItems.length > 0 &&
     filteredItems.every((item) => selectedIds.includes(item.id))
-  const columnTemplate = `40px minmax(140px, 1.2fr) repeat(${shownFields.length}, minmax(100px, 1fr)) 40px`
-
   return (
     <div className="mx-auto max-w-6xl">
       <Link
@@ -419,7 +411,9 @@ export function CollectionPage() {
                   checked={shownFields.some((item) => item.id === field.id)}
                   onChange={(event) =>
                     setVisibleFieldIds((current) => {
-                      const visible = current ?? fields.map((item) => item.id)
+                      const visible = current ?? fields
+                        .filter((item) => !(collection.id === 'purchases' && item.id === 'description'))
+                        .map((item) => item.id)
                       return event.target.checked
                         ? [...visible, field.id]
                         : visible.filter((id) => id !== field.id)
@@ -442,7 +436,7 @@ export function CollectionPage() {
               size="sm"
               variant={display === mode ? 'secondary' : 'ghost'}
               aria-pressed={display === mode}
-              onClick={() => setDisplay(mode)}
+              onClick={() => void saveDisplay(mode)}
             >
               {modeLabel(mode)}
             </Button>
@@ -498,203 +492,26 @@ export function CollectionPage() {
       {filteredItems.length ? (
         <>
           {display === 'table' ? (
-            <>
-              <div
-                className="hidden overflow-hidden rounded-t-lg border border-border bg-muted/60 text-left text-xs text-muted-foreground md:block"
-                role="row"
-                style={{ display: 'grid', gridTemplateColumns: columnTemplate }}
-              >
-                <div className="grid place-items-center px-2 py-3">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all items"
-                    checked={allSelected}
-                    onChange={(event) =>
-                      setSelectedIds(
-                        event.target.checked
-                          ? filteredItems.map((item) => item.id)
-                          : [],
-                      )
-                    }
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => toggleSort('title')}
-                  className="flex items-center gap-1 px-3 py-3 text-left font-medium"
-                >
-                  Name
-                  {sortField === 'title' ? (
-                    sortDirection === 'asc' ? (
-                      <ArrowUp className="size-3" />
-                    ) : (
-                      <ArrowDown className="size-3" />
-                    )
-                  ) : null}
-                </button>
-                {shownFields.map((field) => (
-                  <button
-                    type="button"
-                    key={field.id}
-                    onClick={() => toggleSort(field.id)}
-                    className="flex min-w-0 items-center gap-1 truncate px-3 py-3 text-left font-medium"
-                  >
-                    {field.name}
-                    {sortField === field.id ? (
-                      sortDirection === 'asc' ? (
-                        <ArrowUp className="size-3" />
-                      ) : (
-                        <ArrowDown className="size-3" />
-                      )
-                    ) : null}
-                  </button>
-                ))}
-                <div />
-              </div>
-              <div
-                ref={rowScrollRef}
-                className="hidden max-h-[65vh] overflow-auto border-x border-b border-border md:block"
-                role="rowgroup"
-              >
-                <div
-                  style={{
-                    height: virtualizer.getTotalSize(),
-                    minWidth: 'max-content',
-                    position: 'relative',
-                  }}
-                >
-                  {virtualizer.getVirtualItems().map((virtualRow) => {
-                    const item = filteredItems[virtualRow.index]
-                    return (
-                      <div
-                        key={item.id}
-                        role="row"
-                        className="absolute left-0 top-0 w-full border-b border-border/70 bg-background"
-                        style={{
-                          height: virtualRow.size,
-                          transform: `translateY(${virtualRow.start}px)`,
-                          display: 'grid',
-                          gridTemplateColumns: columnTemplate,
-                        }}
-                      >
-                        <div className="grid place-items-center px-2">
-                          <input
-                            type="checkbox"
-                            aria-label={`Select ${item.title}`}
-                            checked={selectedIds.includes(item.id)}
-                            onChange={(event) =>
-                              setSelectedIds((current) =>
-                                event.target.checked
-                                  ? [...current, item.id]
-                                  : current.filter((id) => id !== item.id),
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="min-w-0 px-3 py-2">
-                          <EditableCell
-                            text={item.title}
-                            ariaLabel={`Name ${item.title}`}
-                            onSave={(value) => updateItem(item, null, value)}
-                          />
-                        </div>
-                        {shownFields.map((field) => (
-                          <div key={field.id} className="min-w-0 px-3 py-2">
-                            <EditableCell
-                              text={valueText(item.data[field.id])}
-                              ariaLabel={`${field.name} for ${item.title}`}
-                              field={field}
-                              onSave={(value) => updateItem(item, field, value)}
-                            />
-                          </div>
-                        ))}
-                        <div className="grid place-items-center">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Delete ${item.title}`}
-                            onClick={() => void removeItems([item.id])}
-                          >
-                            <Trash2 />
-                          </Button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-              <div
-                ref={mobileScrollRef}
-                className="max-h-[70vh] overflow-auto md:hidden"
-              >
-                <div
-                  style={{
-                    height: mobileVirtualizer.getTotalSize(),
-                    position: 'relative',
-                  }}
-                >
-                  {mobileVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const item = filteredItems[virtualRow.index]
-                    return (
-                      <article
-                        key={item.id}
-                        className="absolute left-0 top-0 w-full rounded-xl border border-border bg-card p-3"
-                        style={{
-                          height: virtualRow.size,
-                          transform: `translateY(${virtualRow.start}px)`,
-                        }}
-                      >
-                        <div className="mb-2 flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            aria-label={`Select ${item.title}`}
-                            checked={selectedIds.includes(item.id)}
-                            onChange={(event) =>
-                              setSelectedIds((current) =>
-                                event.target.checked
-                                  ? [...current, item.id]
-                                  : current.filter((id) => id !== item.id),
-                              )
-                            }
-                          />
-                          <div className="min-w-0 flex-1">
-                            <EditableCell
-                              text={item.title}
-                              ariaLabel={`Name ${item.title}`}
-                              onSave={(value) => updateItem(item, null, value)}
-                            />
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Delete ${item.title}`}
-                            onClick={() => void removeItems([item.id])}
-                          >
-                            <Trash2 />
-                          </Button>
-                        </div>
-                        {shownFields.slice(0, 5).map((field) => (
-                          <div
-                            key={field.id}
-                            className="grid grid-cols-[minmax(0,5rem)_1fr] items-center gap-2 border-t border-border/60 py-1.5"
-                          >
-                            <span className="truncate text-xs text-muted-foreground">
-                              {field.name}
-                            </span>
-                            <EditableCell
-                              text={valueText(item.data[field.id])}
-                              ariaLabel={`${field.name} for ${item.title}`}
-                              field={field}
-                              onSave={(value) => updateItem(item, field, value)}
-                            />
-                          </div>
-                        ))}
-                      </article>
-                    )
-                  })}
-                </div>
-              </div>
-            </>
+            <CollectionTable
+              items={filteredItems}
+              fields={shownFields}
+              selectedIds={selectedIds}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              columnWidths={columnWidths}
+              onSort={toggleSort}
+              onResize={(fieldId, width) => void updateColumnWidth(fieldId, width)}
+              onSelect={(itemId, selected) =>
+                setSelectedIds((current) => selected
+                  ? [...new Set([...current, itemId])]
+                  : current.filter((id) => id !== itemId))
+              }
+              onSelectAll={(selected) =>
+                setSelectedIds(selected ? filteredItems.map((item) => item.id) : [])
+              }
+              onSave={updateItem}
+              onDelete={(itemId) => void removeItems([itemId])}
+            />
           ) : (
             <EntryView
               mode={display}
@@ -774,314 +591,6 @@ export function CollectionPage() {
   )
 }
 
-function EditableCell({
-  text,
-  ariaLabel,
-  field,
-  onSave,
-}: {
-  text: string
-  ariaLabel: string
-  field?: FieldDef
-  onSave: (value: string) => Promise<void>
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(text)
-  const canceled = useRef(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const save = () => {
-    if (canceled.current) {
-      canceled.current = false
-      return
-    }
-    const next = inputRef.current?.value ?? draft
-    if (next !== text) void onSave(next)
-    setEditing(false)
-  }
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Escape') {
-      canceled.current = true
-      setDraft(text)
-      setEditing(false)
-      return
-    }
-    if (
-      event.key === 'Enter' &&
-      !event.nativeEvent.isComposing &&
-      event.keyCode !== 229
-    ) {
-      event.preventDefault()
-      save()
-    }
-  }
-  if (!editing)
-    return (
-      <button
-        type="button"
-        className="block w-full truncate rounded px-1 py-1 text-left text-sm hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={`${ariaLabel}, edit`}
-        onClick={() => {
-          setDraft(text)
-          setEditing(true)
-        }}
-      >
-        {text || <span className="text-muted-foreground">Empty</span>}
-      </button>
-    )
-  return (
-    <Input
-      ref={inputRef}
-      aria-label={ariaLabel}
-      autoFocus
-      value={draft}
-      type={
-        field?.type === 'number' ||
-        field?.type === 'currency' ||
-        field?.type === 'duration'
-          ? 'number'
-          : field?.type === 'date'
-            ? 'date'
-            : 'text'
-      }
-      onChange={(event) => setDraft(event.target.value)}
-      onKeyDown={onKeyDown}
-      onBlur={save}
-      className="h-8 min-w-24"
-    />
-  )
-}
-
-function EntryView({
-  mode,
-  items,
-  fields,
-}: {
-  mode: Exclude<DisplayMode, 'table'>
-  items: Item[]
-  fields: FieldDef[]
-}) {
-  const imageField = fields.find((field) => field.type === 'image')
-  if (mode === 'gallery')
-    return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {items.map((item) => (
-          <article
-            key={item.id}
-            className="overflow-hidden rounded-xl border border-border"
-          >
-            <div className="grid aspect-[4/3] place-items-center bg-muted">
-              {imageField && item.data[imageField.id] ? (
-                <img
-                  src={String(item.data[imageField.id])}
-                  alt={item.title}
-                  className="size-full object-cover"
-                />
-              ) : (
-                <span className="text-sm text-muted-foreground">
-                  {item.title}
-                </span>
-              )}
-            </div>
-            <h2 className="truncate p-3 text-sm font-medium">{item.title}</h2>
-          </article>
-        ))}
-      </div>
-    )
-  if (mode === 'timeline')
-    return (
-      <ol className="flex flex-col gap-3">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className="flex gap-3 rounded-lg border border-border p-3"
-          >
-            <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
-            <div>
-              <h2 className="text-sm font-medium">{item.title}</h2>
-              <time className="text-xs text-muted-foreground">
-                {new Date(
-                  item.occurredAt ?? item.createdAt,
-                ).toLocaleDateString()}
-              </time>
-            </div>
-          </li>
-        ))}
-      </ol>
-    )
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((item) => (
-        <article key={item.id} className="rounded-xl border border-border p-4">
-          <h2 className="mb-2 text-sm font-medium">{item.title}</h2>
-          {fields.slice(0, 5).map((field) => (
-            <p
-              key={field.id}
-              className="grid grid-cols-[minmax(0,5rem)_1fr] gap-2 py-1 text-xs"
-            >
-              <span className="truncate text-muted-foreground">
-                {field.name}
-              </span>
-              <span className="break-words">
-                {valueText(item.data[field.id]) || 'Not set'}
-              </span>
-            </p>
-          ))}
-        </article>
-      ))}
-    </div>
-  )
-}
-
-function SchemaEditor({
-  collection,
-  onClose,
-  onSave,
-}: {
-  collection: CollectionSchema
-  onClose: () => void
-  onSave: (fields: FieldDef[]) => Promise<void>
-}) {
-  const [fields, setFields] = useState(collection.fields)
-  async function persist(next: FieldDef[]) {
-    setFields(next)
-    await onSave(next)
-  }
-  function moveField(index: number, delta: number) {
-    const target = Math.max(0, Math.min(fields.length - 1, index + delta))
-    const next = [...fields]
-    ;[next[index], next[target]] = [next[target], next[index]]
-    void persist(next.map((field, order) => ({ ...field, order })))
-  }
-  return (
-    <Dialog open onClose={onClose} title="Edit fields">
-      <DialogHeader
-        title="Fields"
-        description="Rename, reorder, or add fields to this collection."
-      />
-      <DialogBody className="flex max-h-[65vh] flex-col gap-3">
-        {fields.map((field, index) => (
-          <div key={field.id} className="flex items-center gap-2">
-            <Input
-              aria-label={`Field ${index + 1} name`}
-              value={field.name}
-              onChange={(event) =>
-                setFields((current) =>
-                  current.map((item) =>
-                    item.id === field.id
-                      ? { ...item, name: event.target.value }
-                      : item,
-                  ),
-                )
-              }
-              onBlur={() => void persist(fields)}
-            />
-            <span className="w-16 shrink-0 text-xs text-muted-foreground">
-              {fieldTypeLabel(field.type)}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Move ${field.name} up`}
-              onClick={() => moveField(index, -1)}
-            >
-              <ArrowUp />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Move ${field.name} down`}
-              onClick={() => moveField(index, 1)}
-            >
-              <ArrowDown />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Remove ${field.name}`}
-              onClick={() =>
-                void persist(fields.filter((item) => item.id !== field.id))
-              }
-            >
-              <X />
-            </Button>
-          </div>
-        ))}
-        <Button
-          variant="outline"
-          onClick={() =>
-            void persist([
-              ...fields,
-              {
-                id: `field${Date.now()}`,
-                name: 'New field',
-                type: 'text',
-                order: fields.length,
-              },
-            ])
-          }
-        >
-          <Plus />
-          Add field
-        </Button>
-      </DialogBody>
-      <DialogFooter>
-        <Button onClick={onClose}>Done</Button>
-      </DialogFooter>
-    </Dialog>
-  )
-}
-
-function FieldInput({
-  field,
-  value,
-  onChange,
-  id,
-}: {
-  field: FieldDef
-  value: string
-  onChange: (value: string) => void
-  id: string
-}) {
-  if (field.type === 'choice' && field.options?.length)
-    return (
-      <Select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">Choose</option>
-        {field.options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
-      </Select>
-    )
-  if (field.type === 'checkbox')
-    return (
-      <input
-        id={id}
-        type="checkbox"
-        checked={value === 'true'}
-        onChange={(event) => onChange(String(event.target.checked))}
-      />
-    )
-  return (
-    <Input
-      id={id}
-      type={
-        field.type === 'date'
-          ? 'date'
-          : field.type === 'number' ||
-              field.type === 'currency' ||
-              field.type === 'duration'
-            ? 'number'
-            : 'text'
-      }
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  )
-}
-
 function parseValue(field: FieldDef, value: string): ItemValue {
   if (
     field.type === 'number' ||
@@ -1100,24 +609,6 @@ function parseValue(field: FieldDef, value: string): ItemValue {
 
 function modeLabel(mode: DisplayMode) {
   return mode[0].toUpperCase() + mode.slice(1)
-}
-
-function fieldTypeLabel(type: FieldDef['type']) {
-  return {
-    text: 'Text',
-    longText: 'Long text',
-    number: 'Number',
-    currency: 'Currency',
-    date: 'Date',
-    datetime: 'Date and time',
-    duration: 'Duration',
-    checkbox: 'Checkbox',
-    choice: 'Choice',
-    multiChoice: 'Multiple choice',
-    link: 'Link',
-    reference: 'Reference',
-    image: 'Image',
-  }[type]
 }
 
 function csvCell(value: string) {

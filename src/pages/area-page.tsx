@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import {
   Activity,
   Archive,
@@ -25,13 +25,11 @@ import {
   LayoutGrid,
   List,
   MoreHorizontal,
-  Mountain,
   Plus,
   Rows3,
   Sparkles,
   Table2,
   Trash2,
-  Wallet,
   X,
 } from 'lucide-react'
 import {
@@ -75,6 +73,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ViewRenderer } from '@/components/areas/view-renderer'
+import { AreaIcon, areaIconOptions } from '@/components/areas/area-icon'
+import { InlineAreaField } from '@/components/areas/inline-area-field'
 import { cn } from '@/lib/utils'
 
 interface AreaScreenData {
@@ -111,14 +111,6 @@ const loadArea = async (areaId: string): Promise<AreaScreenData> => {
   }
 }
 
-const iconMap = {
-  archive: Archive,
-  wallet: Wallet,
-  activity: Activity,
-  mountain: Mountain,
-  sun: Sparkles,
-  book: BookOpen,
-}
 const periodLabels: Record<ViewPeriod, string> = {
   thisMonth: 'This month',
   last30Days: 'Last 30 days',
@@ -253,6 +245,10 @@ const blockOptions = [
 
 export function AreaPage({ onCapture }: { onCapture: () => void }) {
   const { areaId = '' } = useParams()
+  const location = useLocation()
+  const [initialRename, setInitialRename] = useState(
+    Boolean((location.state as { editName?: boolean } | null)?.editName),
+  )
   const loader = useCallback(() => loadArea(areaId), [areaId])
   const resource = useApiResource(loader, areaId)
   const data = resource.data
@@ -261,8 +257,11 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   const [customizing, setCustomizing] = useState(false)
   const [settingsBlock, setSettingsBlock] = useState<string | null>(null)
   const [areaSettingsOpen, setAreaSettingsOpen] = useState(false)
+  const [pageMenu, setPageMenu] = useState<string | null>(null)
+  const [blockMenu, setBlockMenu] = useState<string | null>(null)
+  const pageMenuRef = useRef<HTMLDivElement>(null)
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null)
-  const [picker, setPicker] = useState<{ afterId: string } | null>(null)
+  const [picker, setPicker] = useState<{ afterId?: string; sectionId?: string } | null>(null)
   const [saveError, setSaveError] = useState('')
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -294,6 +293,22 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
     return () =>
       window.removeEventListener('hub:area-items-changed', refreshArea)
   }, [refreshAreaData])
+
+  useEffect(() => {
+    if (!pageMenu) return
+    const dismiss = (event: PointerEvent) => {
+      if (!pageMenuRef.current?.contains(event.target as Node)) setPageMenu(null)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPageMenu(null)
+    }
+    document.addEventListener('pointerdown', dismiss)
+    window.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      window.removeEventListener('keydown', escape)
+    }
+  }, [pageMenu])
 
   async function saveBlock(block: Block) {
     await blocksApi.saveBlock(block)
@@ -393,13 +408,28 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
     const name = window.prompt('Rename page', current.name)?.trim()
     if (name) {
       await areaLayoutApi.updatePage({ ...current, name })
+      setPageMenu(null)
       await resource.refresh()
     }
   }
 
+  async function movePage(current: AreaPageSpec, delta: number) {
+    if (!data) return
+    const ordered = [...data.pages].sort((left, right) => left.order - right.order)
+    const index = ordered.findIndex((item) => item.id === current.id)
+    const target = index + delta
+    if (target < 0 || target >= ordered.length) return
+    ;[ordered[index], ordered[target]] = [ordered[target], ordered[index]]
+    await areaLayoutApi.reorderPages(areaId, ordered.map((item) => item.id))
+    setPageMenu(null)
+    await resource.refresh()
+  }
+
   async function deletePage(current: AreaPageSpec) {
     if (!data || data.pages.length < 2) return
+    if (!window.confirm(`Delete the page “${current.name}”? This cannot be undone.`)) return
     await areaLayoutApi.removePage(areaId, current.id)
+    setPageMenu(null)
     setPageId(data.pages.find((item) => item.id !== current.id)?.id ?? '')
     await resource.refresh()
   }
@@ -544,9 +574,11 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   async function saveArea(patch: Partial<Area>) {
     if (!data?.area) return
     try {
-      await areaLayoutApi.updateArea(areaId, patch)
+      const updated = await areaLayoutApi.updateArea(areaId, patch)
+      resource.setData((previous) =>
+        previous ? { ...previous, area: updated } : previous,
+      )
       setSaveError('')
-      await resource.refresh()
     } catch {
       setSaveError('Could not save area settings. Try again.')
     }
@@ -597,33 +629,34 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
       />
     )
   const area = data.area
-  const AreaIcon = iconMap[area.icon as keyof typeof iconMap]
 
   return (
-    <div
-      className="mx-auto max-w-5xl border-t-2 pt-3"
-      style={{ borderTopColor: `var(--${area.accent || 'primary'})` }}
-    >
+    <div className="mx-auto max-w-5xl pt-3">
       <header className="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <div className="mb-2 flex items-center gap-2">
-            <span
-              className="grid size-8 shrink-0 place-items-center text-primary"
-              aria-hidden="true"
-            >
-              {AreaIcon ? (
-                <AreaIcon className="size-5" />
-              ) : (
-                <span className="text-xl leading-none">{area.icon}</span>
-              )}
-            </span>
-            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-              {area.name}
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex min-w-0 items-center gap-2">
+            <AreaIcon name={area.icon} className="size-5 shrink-0 text-primary" />
+            <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+              <InlineAreaField
+                value={area.name}
+                label="Area name"
+                as="input"
+                initialEditing={initialRename}
+                className="min-w-0 w-full text-2xl font-semibold tracking-tight sm:text-3xl"
+                onSave={async (name) => {
+                  await saveArea({ name })
+                  setInitialRename(false)
+                }}
+              />
             </h1>
           </div>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            {area.description}
-          </p>
+          <InlineAreaField
+            value={area.description}
+            label="Area description"
+            as="textarea"
+            className="max-w-2xl text-sm text-muted-foreground"
+            onSave={(description) => saveArea({ description })}
+          />
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {customizing ? (
@@ -653,63 +686,65 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
         </p>
       ) : null}
       {data.pages.length ? (
-        <div
+        <nav
           className="mb-5 flex items-center gap-2 overflow-x-auto border-b border-border"
-          role="tablist"
           aria-label={`${area.name} pages`}
         >
-          {data.pages.map((item) => (
-            <div
-              key={item.id}
-              className="group relative flex items-center gap-1"
-            >
-              <button
-                role="tab"
-                aria-selected={page?.id === item.id}
-                onClick={() => setPageId(item.id)}
-                className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm ${page?.id === item.id ? 'border-primary font-medium' : 'border-transparent text-muted-foreground'}`}
-              >
-                {item.name}
-              </button>
-              {customizing ? (
-                <details className="relative">
-                  <summary
-                    aria-label={`Options for ${item.name}`}
-                    className="grid size-7 cursor-pointer list-none place-items-center rounded text-muted-foreground hover:bg-muted"
+          {[...data.pages]
+            .sort((left, right) => left.order - right.order)
+            .map((item, index) => {
+              const isActive = page?.id === item.id
+              const showMenu = customizing || isActive
+              return (
+                <div key={item.id} className="relative flex shrink-0 items-center gap-1">
+                  <button
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => setPageId(item.id)}
+                    className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm ${isActive ? 'border-primary font-medium' : 'border-transparent text-muted-foreground'}`}
                   >
-                    <MoreHorizontal className="size-4" />
-                  </summary>
-                  <div className="absolute right-0 top-8 z-20 flex w-40 flex-col rounded-lg border border-border bg-popover p-1 shadow-lg">
-                    <button
-                      className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
-                      onClick={() => void renamePage(item)}
-                    >
-                      Rename page
-                    </button>
-                    <button
-                      className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
-                      onClick={() => setPageId(item.id)}
-                    >
-                      Move page left
-                    </button>
-                    <button
-                      className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
-                      onClick={() => void deletePage(item)}
-                    >
-                      Delete page
-                    </button>
-                  </div>
-                </details>
-              ) : null}
-            </div>
-          ))}
+                    {item.name}
+                  </button>
+                  {showMenu ? (
+                    <div ref={pageMenu === item.id ? pageMenuRef : undefined} className="relative">
+                      <button
+                        type="button"
+                        aria-label={`Options for ${item.name}`}
+                        aria-expanded={pageMenu === item.id}
+                        onClick={() => {
+                          setPicker(null)
+                          setBlockMenu(null)
+                          setPageMenu((current) => current === item.id ? null : item.id)
+                        }}
+                        className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </button>
+                      {pageMenu === item.id ? (
+                        <div className="absolute right-0 top-8 z-30 flex w-44 flex-col rounded-lg border border-border bg-popover p-1 shadow-lg">
+                          <button className="rounded px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => void renamePage(item)}>Rename</button>
+                          <button disabled={index === 0} className="rounded px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void movePage(item, -1)}>Move left</button>
+                          <button disabled={index === data.pages.length - 1} className="rounded px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void movePage(item, 1)}>Move right</button>
+                          <button
+                            disabled={data.pages.length < 2}
+                            title={data.pages.length < 2 ? 'An area needs at least one page.' : undefined}
+                            className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => void deletePage(item)}
+                          >Delete</button>
+                          {data.pages.length < 2 ? <span className="px-3 pb-2 text-xs text-muted-foreground">Keep at least one page.</span> : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
           {customizing ? (
             <Button variant="ghost" size="sm" onClick={() => void addPage()}>
               <Plus />
               Add page
             </Button>
           ) : null}
-        </div>
+        </nav>
       ) : null}
       {!sections.length ? (
         <EmptyState
@@ -738,11 +773,11 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                     onMove={(delta) => void moveSection(section, delta)}
                     onDelete={() => void removeSection(section)}
                   />
-                ) : section.title ? (
-                  <h2 className="mb-3 text-sm font-semibold">
-                    {section.title}
+                ) : (
+                  <h2 className={cn('mb-3 text-sm font-semibold', !section.title && 'sr-only')}>
+                    {section.title || 'Section'}
                   </h2>
-                ) : null}
+                )}
                 <SortableContext
                   items={sectionBlocks(section).map((block) => block.id)}
                   strategy={verticalListSortingStrategy}
@@ -756,7 +791,14 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                   >
                     {customizing && sectionBlocks(section).length === 0 ? (
                       <BlockPicker
+                        open={picker?.sectionId === section.id}
                         onPick={(type) => void addBlock(type, section)}
+                        onClose={() => setPicker(null)}
+                        onOpenChange={(open) => {
+                          setPageMenu(null)
+                          setBlockMenu(null)
+                          setPicker(open ? { sectionId: section.id } : null)
+                        }}
                       />
                     ) : null}
                     {sectionBlocks(section).map((block) => (
@@ -765,6 +807,14 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                           block={block}
                           data={data}
                           customizing={customizing}
+                          menuOpen={blockMenu === block.id}
+                          onMenuOpenChange={(open) => {
+                            if (open) {
+                              setPageMenu(null)
+                              setPicker(null)
+                            }
+                            setBlockMenu(open ? block.id : null)
+                          }}
                           selected={selectedBlock === block.id}
                           onSelect={() => setSelectedBlock(block.id)}
                           onSave={saveBlock}
@@ -772,7 +822,11 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                           onDuplicate={duplicateBlock}
                           onMove={moveBlock}
                           onSettings={() => openBlockSettings(block.id)}
-                          onOpenPicker={() => setPicker({ afterId: block.id })}
+                          onOpenPicker={() => {
+                            setPageMenu(null)
+                            setBlockMenu(null)
+                            setPicker({ afterId: block.id })
+                          }}
                         />
                         {customizing ? (
                           <BlockPicker
@@ -781,6 +835,11 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                               void addBlock(type, section, block.id)
                             }
                             onClose={() => setPicker(null)}
+                            onOpenChange={(open) => {
+                              setPageMenu(null)
+                              setBlockMenu(null)
+                              setPicker(open ? { afterId: block.id } : null)
+                            }}
                           />
                         ) : null}
                       </div>
@@ -847,51 +906,85 @@ function DropZone({
 function BlockPicker({
   onPick,
   onClose,
-  open = false,
+  onOpenChange,
+  open,
 }: {
   onPick: (type: (typeof blockOptions)[number]['key']) => void
   onClose?: () => void
+  onOpenChange?: (open: boolean) => void
   open?: boolean
 }) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const isOpen = open ?? internalOpen
+
+  function setOpen(next: boolean) {
+    if (open === undefined) setInternalOpen(next)
+    onOpenChange?.(next)
+    if (!next) onClose?.()
+  }
+
+  useEffect(() => {
+    if (!isOpen) return
+    const dismiss = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', dismiss)
+    window.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      window.removeEventListener('keydown', escape)
+    }
+  }, [isOpen])
+
   return (
-    <details
-      open={open || undefined}
-      onToggle={(event) => !event.currentTarget.open && onClose?.()}
-      className="group/picker relative flex min-h-5 items-center"
-    >
-      <summary
+    <div ref={rootRef} className="group/picker relative flex min-h-5 items-center">
+      <button
+        ref={triggerRef}
+        type="button"
         aria-label="Add a block"
-        className="mx-auto grid size-6 cursor-pointer list-none place-items-center rounded-full text-muted-foreground/50 transition hover:bg-muted hover:text-foreground focus-visible:text-foreground group-hover/picker:bg-muted group-hover/picker:text-foreground"
+        aria-expanded={isOpen}
+        onClick={() => setOpen(!isOpen)}
+        className="mx-auto grid size-6 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:text-foreground group-hover/picker:bg-muted group-hover/picker:text-foreground"
       >
         <Plus className="size-4" />
-      </summary>
-      <div className="absolute left-1/2 top-7 z-30 grid w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-1 gap-1 rounded-xl border border-border bg-popover p-2 shadow-xl sm:grid-cols-2">
-        {blockOptions.map((option) => {
-          const Icon = option.icon
-          return (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => {
-                onPick(option.key)
-                onClose?.()
-              }}
-              className="flex min-w-0 items-start gap-2 rounded-lg p-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">
-                  {option.label}
+      </button>
+      {isOpen ? (
+        <div aria-label="Choose a block" className="absolute left-1/2 top-7 z-30 grid w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-1 gap-1 rounded-xl border border-border bg-popover p-2 shadow-xl sm:grid-cols-2">
+          {blockOptions.map((option) => {
+            const Icon = option.icon
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => {
+                  onPick(option.key)
+                  setOpen(false)
+                  triggerRef.current?.focus()
+                }}
+                className="flex min-w-0 items-start gap-2 rounded-lg p-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{option.label}</span>
+                  <span className="block text-xs leading-snug text-muted-foreground">{option.description}</span>
                 </span>
-                <span className="block text-xs leading-snug text-muted-foreground">
-                  {option.description}
-                </span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </details>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -997,6 +1090,8 @@ function SortableBlock({
   block,
   data,
   customizing,
+  menuOpen,
+  onMenuOpenChange,
   selected,
   onSelect,
   onSave,
@@ -1009,6 +1104,8 @@ function SortableBlock({
   block: Block
   data: AreaScreenData
   customizing: boolean
+  menuOpen: boolean
+  onMenuOpenChange: (open: boolean) => void
   selected: boolean
   onSelect: () => void
   onSave: (block: Block) => Promise<void>
@@ -1020,7 +1117,27 @@ function SortableBlock({
 }) {
   const sortable = useSortable({ id: block.id, disabled: !customizing })
   const resizeStart = useRef<{ x: number; y: number } | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const dismiss = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) onMenuOpenChange(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onMenuOpenChange(false)
+        menuTriggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', dismiss)
+    window.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      window.removeEventListener('keydown', escape)
+    }
+  }, [menuOpen, onMenuOpenChange])
   const style = {
     transform: sortable.transform
       ? `translate3d(${sortable.transform.x}px, ${sortable.transform.y}px, 0) scaleX(${sortable.transform.scaleX}) scaleY(${sortable.transform.scaleY})`
@@ -1064,12 +1181,13 @@ function SortableBlock({
         </button>
       ) : null}
       {customizing ? (
-        <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/block:opacity-100 focus-within:opacity-100">
+        <div ref={menuRef} className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/block:opacity-100 focus-within:opacity-100">
           <button
+            ref={menuTriggerRef}
             type="button"
             aria-label={`${title} block menu`}
             aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={() => onMenuOpenChange(!menuOpen)}
             className="grid size-8 place-items-center rounded-md bg-background/90 text-muted-foreground shadow-sm hover:bg-muted"
           >
             <MoreHorizontal className="size-4" />
@@ -1079,7 +1197,7 @@ function SortableBlock({
               <button
                 className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
                 onClick={() => {
-                  setMenuOpen(false)
+                  onMenuOpenChange(false)
                   onSettings()
                 }}
               >
@@ -1088,7 +1206,7 @@ function SortableBlock({
               <button
                 className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
                 onClick={() => {
-                  setMenuOpen(false)
+                  onMenuOpenChange(false)
                   void onDuplicate(block)
                 }}
               >
@@ -1117,7 +1235,7 @@ function SortableBlock({
               <button
                 className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
                 onClick={() => {
-                  setMenuOpen(false)
+                  onMenuOpenChange(false)
                   void onMove(block, -1)
                 }}
               >
@@ -1126,7 +1244,7 @@ function SortableBlock({
               <button
                 className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
                 onClick={() => {
-                  setMenuOpen(false)
+                  onMenuOpenChange(false)
                   void onMove(block, 1)
                 }}
               >
@@ -1135,7 +1253,7 @@ function SortableBlock({
               <button
                 className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
                 onClick={() => {
-                  setMenuOpen(false)
+                  onMenuOpenChange(false)
                   void onDelete(block)
                 }}
               >
@@ -1298,6 +1416,8 @@ function SortableBlock({
   )
 }
 
+const areaEmojiOptions = ['📚', '🌿', '🏠', '💰', '🏃', '🧭', '🎨', '✨', '☀️', '🎵']
+
 function AreaSettings({
   area,
   onClose,
@@ -1339,32 +1459,45 @@ function AreaSettings({
             }
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          Icon
-          <Input
-            aria-label="Area icon"
-            defaultValue={area.icon}
-            onBlur={(event) =>
-              event.currentTarget.value !== area.icon &&
-              void onSave({ icon: event.currentTarget.value })
-            }
-          />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          Accent color
-          <Select
-            aria-label="Area accent color"
-            value={area.accent}
-            onChange={(event) => void onSave({ accent: event.target.value })}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium">Icon</legend>
+          <button
+            type="button"
+            aria-pressed={!area.icon}
+            onClick={() => void onSave({ icon: '' })}
+            className="w-fit rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
           >
-            <option value="primary">Primary</option>
-            {[1, 2, 3, 4, 5].map((number) => (
-              <option key={number} value={`chart-${number}`}>
-                Accent {number}
-              </option>
+            No icon
+          </button>
+          <div className="grid grid-cols-8 gap-1" aria-label="Emoji icons">
+            {areaEmojiOptions.map((emoji) => (
+              <button
+                type="button"
+                key={emoji}
+                aria-label={`Use ${emoji} icon`}
+                aria-pressed={area.icon === emoji}
+                onClick={() => void onSave({ icon: emoji })}
+                className="grid size-9 place-items-center rounded-md border border-border text-lg hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary/10"
+              >
+                {emoji}
+              </button>
             ))}
-          </Select>
-        </label>
+          </div>
+          <div className="grid grid-cols-8 gap-1">
+            {areaIconOptions.map(({ name, icon: Icon }) => (
+              <button
+                type="button"
+                key={name}
+                aria-label={`Use ${name} icon`}
+                aria-pressed={area.icon === name}
+                onClick={() => void onSave({ icon: name })}
+                className="grid size-9 place-items-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary"
+              >
+                <Icon aria-hidden="true" className="size-4" />
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <label className="flex flex-col gap-1.5 text-sm">
           Description
           <Textarea
@@ -1441,11 +1574,14 @@ function BlockSettings({
           Title
           <Input
             aria-label="Block title"
-            defaultValue={block.title ?? ''}
-            onBlur={(event) =>
-              event.currentTarget.value !== block.title &&
-              updateBlock({ title: event.currentTarget.value })
-            }
+            defaultValue={block.type === 'view' ? block.view.title : (block.title ?? '')}
+            onBlur={(event) => {
+              const currentTitle = block.type === 'view' ? block.view.title : (block.title ?? '')
+              if (event.currentTarget.value !== currentTitle) {
+                if (block.type === 'view') updateView({ title: event.currentTarget.value })
+                else updateBlock({ title: event.currentTarget.value })
+              }
+            }}
           />
         </label>
         {view ? (

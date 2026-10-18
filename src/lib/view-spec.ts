@@ -1,28 +1,25 @@
 import type { Item, ViewSpec } from '@/services/api'
+import { localDateString, normalizeLocalDate, parseLocalDate } from '@/lib/local-date'
 
 function dateOf(item: Item) {
-  const values = Object.values(item.data).filter(
-    (value): value is string => typeof value === 'string',
+  const dateOnly = Object.values(item.data).find(
+    (value): value is string =>
+      typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value),
   )
-  if (item.occurredAt) values.unshift(item.occurredAt)
-  for (const value of values) {
-    const date = new Date(value)
-    if (!Number.isNaN(date.getTime()) && /\d{4}-\d{2}-\d{2}/.test(value))
-      return date
-  }
-  return new Date(item.createdAt)
+  if (dateOnly) return parseLocalDate(dateOnly)
+  if (item.occurredAt) return normalizeLocalDate(parseLocalDate(item.occurredAt))
+  return normalizeLocalDate(new Date(item.createdAt))
 }
 
 export function applyViewSpec(spec: ViewSpec, items: Item[], now = new Date()) {
-  const cutoff = new Date(now)
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const today = normalizeLocalDate(now)
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+  const cutoff = new Date(today)
   if (spec.period === 'thisMonth') cutoff.setTime(monthStart.getTime())
   if (spec.period === 'last30Days') cutoff.setDate(cutoff.getDate() - 30)
   if (spec.period === '12Months')
-    cutoff.setTime(
-      new Date(now.getFullYear(), now.getMonth() - 11, 1).getTime(),
-    )
+    cutoff.setTime(new Date(today.getFullYear(), today.getMonth() - 11, 1).getTime())
   let selected = items.filter((item) => {
     const itemDate = dateOf(item)
     if (
@@ -85,7 +82,7 @@ export function aggregateView(spec: ViewSpec, items: Item[]) {
     return latest
       ? fieldId
         ? (latest.data[fieldId] ?? null)
-        : dateOf(latest).toISOString()
+        : localDateString(dateOf(latest))
       : null
   }
   if (!values.length) return 0

@@ -100,16 +100,24 @@ export const mockAreas: Area[] = [
 
 const fields = (
   definitions: Array<
-    [string, string, CollectionSchema['fields'][number]['type'], string?]
-  >,
+    [
+      string,
+      string,
+      CollectionSchema['fields'][number]['type'],
+      string?,
+      string[]?,
+    ]
+  >
 ) =>
-  definitions.map(([id, name, type, unit], order) => ({
+  definitions.map(([id, name, type, unit, options], order) => ({
     id,
     name,
     type,
     unit,
+    options,
     order,
   }))
+
 
 export const mockCollections: CollectionSchema[] = [
   {
@@ -124,7 +132,7 @@ export const mockCollections: CollectionSchema[] = [
       ['purchaseDate', 'Purchase date', 'date'],
       ['amount', 'Amount', 'currency'],
       ['warrantyEnds', 'Warranty ends', 'date'],
-      ['location', 'Location', 'choice'],
+      ['location', 'Location', 'choice', undefined, ['Studio shelf', 'Living room', 'Bedroom dresser', 'Garage', 'Hall closet']],
       ['photo', 'Photo', 'image'],
     ]),
     createdAt: stamp(120),
@@ -138,10 +146,10 @@ export const mockCollections: CollectionSchema[] = [
     fields: fields([
       ['merchant', 'Merchant', 'text'],
       ['description', 'Description', 'text'],
-      ['category', 'Category', 'choice'],
+      ['category', 'Category', 'choice', undefined, ['Groceries', 'Home', 'Dining', 'Transport', 'Health', 'Utilities', 'Personal']],
       ['amount', 'Amount', 'currency'],
       ['date', 'Date', 'date'],
-      ['payment', 'Payment', 'choice'],
+      ['payment', 'Payment', 'choice', undefined, ['Card', 'Checking', 'Cash']],
       ['reference', 'Related item', 'reference'],
     ]),
     createdAt: stamp(180),
@@ -180,7 +188,7 @@ export const mockCollections: CollectionSchema[] = [
     description: 'Accounts and the holdings inside them.',
     fields: fields([
       ['account', 'Account', 'text'],
-      ['kind', 'Type', 'choice'],
+      ['kind', 'Type', 'choice', undefined, ['Investment account', 'Retirement', 'Cash reserve']],
       ['value', 'Value', 'currency'],
       ['change', 'Change', 'number', '%'],
     ]),
@@ -366,7 +374,9 @@ const additionalInventoryItems: Item[] = Array.from(
       id: `inventory-extra-${index + 1}`,
       title,
       data: {
-        ...base.data,
+        ...Object.fromEntries(
+          Object.entries(base.data).filter(([fieldId]) => fieldId !== 'photo'),
+        ),
         make: ['Field Notes', 'Northline', 'Hearth & Hand', 'All-City'][
           index % 4
         ],

@@ -10,8 +10,8 @@ function item(id: string, amount: number, date: string): Item {
     collectionId: 'records',
     title: id,
     type: 'record',
-    occurredAt: date,
-    data: { amount },
+    occurredAt: date.slice(0, 10),
+    data: { amount, date: date.slice(0, 10) },
     createdAt: date,
     updatedAt: date,
   }

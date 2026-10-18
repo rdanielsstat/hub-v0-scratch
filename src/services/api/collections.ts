@@ -1,4 +1,4 @@
-import type { CollectionSchema, FieldDef, Item, ItemValue } from './types'
+import type { CollectionPreferences, CollectionSchema, FieldDef, Item, ItemValue } from './types'
 import {
   mockAreas,
   mockCollections,
@@ -6,6 +6,12 @@ import {
   cloneMockData,
 } from './mock-areas-data'
 import { mockAreasRequest } from './mock-areas-runtime'
+
+const collectionPreferences = new Map<string, CollectionPreferences>()
+const defaultPreferences: CollectionPreferences = {
+  display: 'table',
+  columnWidths: {},
+}
 
 export interface CreateCollectionInput {
   areaId: string
@@ -27,6 +33,21 @@ export const collectionsApi = {
       mockCollections.find((collection) => collection.id === id) ?? null,
       null,
     )
+  },
+
+  async getPreferences(collectionId: string): Promise<CollectionPreferences> {
+    return mockAreasRequest(
+      collectionPreferences.get(collectionId) ?? defaultPreferences,
+      defaultPreferences,
+    )
+  },
+
+  async savePreferences(
+    collectionId: string,
+    preferences: CollectionPreferences,
+  ): Promise<CollectionPreferences> {
+    collectionPreferences.set(collectionId, cloneMockData(preferences))
+    return cloneMockData(preferences)
   },
 
   async createCollection(

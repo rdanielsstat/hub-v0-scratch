@@ -3,22 +3,17 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Activity,
-  Archive,
-  BookOpen,
   ChevronDown,
   ChevronRight,
   Compass,
   GripVertical,
-  Mountain,
-  Pin,
   Plus,
-  Wallet,
   X,
   Sparkles,
 } from 'lucide-react'
@@ -49,16 +44,9 @@ import { useApiResource } from '@/hooks/use-api-resource'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { AreaIcon } from '@/components/areas/area-icon'
 import { useStore } from '@/use-store'
 
-const icons: Record<string, typeof Archive> = {
-  archive: Archive,
-  wallet: Wallet,
-  activity: Activity,
-  mountain: Mountain,
-  sun: Sparkles,
-  book: BookOpen,
-}
 const sorts: ProjectFilterState['sort'][] = [
   'updated',
   'opportunity',
@@ -186,6 +174,17 @@ export function AppSidebar({
     const updated = await areaLayoutApi.updateArea(area.id, patch)
     areasState.setData((previous) =>
       (previous ?? []).map((item) => (item.id === area.id ? updated : item)),
+    )
+  }
+  async function renameArea(area: Area) {
+    const name = window.prompt('Rename area', area.name)?.trim()
+    if (name && name !== area.name) await updateArea(area, { name })
+  }
+  async function deleteArea(area: Area) {
+    if (!window.confirm(`Delete “${area.name}”? This cannot be undone.`)) return
+    await areasApi.removeArea(area.id)
+    areasState.setData((previous) =>
+      (previous ?? []).filter((item) => item.id !== area.id),
     )
   }
   async function reorderAreas(next: Area[]) {
@@ -542,6 +541,8 @@ export function AppSidebar({
                                   groupId: groupId || null,
                                 })
                               }
+                              onRename={() => void renameArea(area)}
+                              onDelete={() => void deleteArea(area)}
                             />
                           ))}
                       </SortableContext>
@@ -583,6 +584,8 @@ export function AppSidebar({
                           onGroupChange={(groupId) =>
                             void updateArea(area, { groupId: groupId || null })
                           }
+                          onRename={() => void renameArea(area)}
+                          onDelete={() => void deleteArea(area)}
                         />
                       ))}
                   </SortableContext>
@@ -700,6 +703,8 @@ function AreaNav({
   onPin,
   onMove,
   onGroupChange,
+  onRename,
+  onDelete,
 }: {
   area: Area
   groups: AreaGroup[]
@@ -707,27 +712,56 @@ function AreaNav({
   onPin: () => void
   onMove: (delta: number) => void
   onGroupChange: (groupId: string) => void
+  onRename: () => void
+  onDelete: () => void
 }) {
   const sortable = useSortable({ id: `area:${area.id}` })
-  const Icon = icons[area.icon]
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const style = {
     transform: sortable.transform
       ? `translate3d(${sortable.transform.x}px, ${sortable.transform.y}px, 0)`
       : undefined,
     transition: sortable.transition,
   }
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const dismiss = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', dismiss)
+    window.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      window.removeEventListener('keydown', escape)
+    }
+  }, [menuOpen])
+
+  function action(callback: () => void) {
+    setMenuOpen(false)
+    callback()
+  }
+
   return (
     <div
       ref={sortable.setNodeRef}
       style={style}
-      className="group flex items-center gap-1"
+      className="group relative flex min-w-0 items-center gap-1"
     >
       <button
         type="button"
         {...sortable.attributes}
         {...sortable.listeners}
         aria-label={`Reorder ${area.name}`}
-        className="touch-none rounded p-1 text-muted-foreground opacity-30 hover:bg-sidebar-accent hover:opacity-100 focus-visible:opacity-100"
+        className="touch-none rounded p-1 text-muted-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <GripVertical className="size-3" />
       </button>
@@ -736,57 +770,47 @@ function AreaNav({
         onClick={onClick}
         className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
-        {Icon ? (
-          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="grid size-4 shrink-0 place-items-center text-sm leading-none"
-          >
-            {area.icon}
-          </span>
-        )}
-        <span className="truncate">{area.name}</span>
+        <AreaIcon name={area.icon} className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{area.name}</span>
       </Link>
-      <div className="hidden items-center group-hover:flex group-focus-within:flex">
+      <div ref={menuRef} className="relative shrink-0">
         <button
-          aria-label={`${area.pinned ? 'Unpin' : 'Pin'} ${area.name}`}
-          onClick={onPin}
-          className="p-1 text-muted-foreground"
+          ref={triggerRef}
+          type="button"
+          aria-label={`Options for ${area.name}`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Pin
-            className={
-              area.pinned ? 'size-3 fill-current text-primary' : 'size-3'
-            }
-          />
+          <span aria-hidden="true">···</span>
         </button>
-        <button
-          aria-label={`Move ${area.name} up`}
-          onClick={() => onMove(-1)}
-          className="px-1 text-xs"
-        >
-          ↑
-        </button>
-        <button
-          aria-label={`Move ${area.name} down`}
-          onClick={() => onMove(1)}
-          className="px-1 text-xs"
-        >
-          ↓
-        </button>
-        <Select
-          aria-label={`Group ${area.name}`}
-          value={area.groupId ?? ''}
-          onChange={(event) => onGroupChange(event.target.value)}
-          className="h-6 w-7 border-0 p-0"
-        >
-          <option value="">No group</option>
-          {groups.map((group) => (
-            <option key={group.id} value={group.id}>
-              {group.name}
-            </option>
-          ))}
-        </Select>
+        {menuOpen ? (
+          <div
+            aria-label={`${area.name} options`}
+            className="absolute right-0 top-8 z-30 flex w-48 max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-sidebar-border bg-sidebar p-1 shadow-lg"
+          >
+            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(onRename)}>Rename</button>
+            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(onPin)}>{area.pinned ? 'Unpin' : 'Pin'}</button>
+            <label className="flex flex-col gap-1 px-3 py-2 text-xs text-muted-foreground">
+              Move to group
+              <Select
+                aria-label={`Move ${area.name} to group`}
+                value={area.groupId ?? ''}
+                onChange={(event) => action(() => onGroupChange(event.target.value))}
+                className="h-8 w-full"
+              >
+                <option value="">No group</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>{group.name}</option>
+                ))}
+              </Select>
+            </label>
+            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(() => onMove(-1))}>Move up</button>
+            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(() => onMove(1))}>Move down</button>
+            <button className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-sidebar-accent" onClick={() => action(onDelete)}>Delete</button>
+          </div>
+        ) : null}
       </div>
     </div>
   )

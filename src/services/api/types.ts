@@ -117,6 +117,11 @@ export interface FieldDef {
   order: number
 }
 
+export interface CollectionPreferences {
+  display: 'table' | 'cards' | 'gallery' | 'timeline'
+  columnWidths: Record<string, number>
+}
+
 export interface CollectionSchema {
   id: string
   areaId: string
