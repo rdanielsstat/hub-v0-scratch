@@ -19,12 +19,13 @@ export const collectionsApi = {
     const collections = areaId
       ? mockCollections.filter((collection) => collection.areaId === areaId)
       : mockCollections
-    return mockAreasRequest(collections)
+    return mockAreasRequest(collections, [])
   },
 
   async getCollection(id: string): Promise<CollectionSchema | null> {
     return mockAreasRequest(
       mockCollections.find((collection) => collection.id === id) ?? null,
+      null,
     )
   },
 
@@ -62,11 +63,12 @@ export const collectionsApi = {
   async listCollectionItems(collectionId: string): Promise<Item[]> {
     return mockAreasRequest(
       mockItems.filter((item) => item.collectionId === collectionId),
+      [],
     )
   },
 
   async getItem(id: string): Promise<Item | null> {
-    return mockAreasRequest(mockItems.find((item) => item.id === id) ?? null)
+    return mockAreasRequest(mockItems.find((item) => item.id === id) ?? null, null)
   },
 
   async createItem(

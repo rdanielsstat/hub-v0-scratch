@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { StoreProvider } from '@/store'
 import type { Project } from '@/services/api'
 import { DashboardPage } from './dashboard'
@@ -47,11 +47,17 @@ function project(overrides: Partial<Project> = {}): Project {
   }
 }
 
-function renderDashboard(onCapture = vi.fn()) {
+function SearchProbe() {
+  const location = useLocation()
+  return <output data-testid="current-search">{location.search}</output>
+}
+
+function renderDashboard(onCapture = vi.fn(), initialEntries = ['/']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <StoreProvider>
         <DashboardPage onCapture={onCapture} />
+        <SearchProbe />
       </StoreProvider>
     </MemoryRouter>,
   )
@@ -159,6 +165,16 @@ describe('DashboardPage populated', () => {
 
   beforeEach(() => {
     mockApi.listProjects.mockResolvedValue(projects.map((p) => ({ ...p })))
+  })
+
+  it('initializes filters from URL parameters and writes changes back to the URL', async () => {
+    const user = userEvent.setup()
+    renderDashboard(vi.fn(), ['/?status=Active&tag=chess&q=analytics&sort=name'])
+    expect(await screen.findByText('Chess analytics')).toBeInTheDocument()
+    expect(screen.queryByText('Garden planner')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^inbox/i }))
+    expect(screen.getByTestId('current-search')).toHaveTextContent('status=Inbox')
+    expect(screen.queryByText('Chess analytics')).not.toBeInTheDocument()
   })
 
   it('renders all projects as cards', async () => {

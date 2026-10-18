@@ -19,6 +19,7 @@ export const entriesApi = {
             ? item.parentItemId === parentItemId
             : !item.parentItemId),
       ),
+      [],
     )
   },
 

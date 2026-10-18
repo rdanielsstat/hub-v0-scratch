@@ -72,7 +72,26 @@ export interface RegisterInput {
   displayName?: string
 }
 
-export type AreaLayout = 'stack' | 'grid'
+export type SectionLayout = 'stack' | 'grid'
+export type BlockSize = 'small' | 'medium' | 'wide' | 'tall' | 'full'
+
+export interface AreaPageSpec {
+  id: string
+  name: string
+  order: number
+  sectionIds: string[]
+}
+
+export interface AreaSection {
+  id: string
+  areaId: string
+  pageId: string
+  title?: string
+  order: number
+  layout: SectionLayout
+  columns: 1 | 2 | 3 | 4
+  blockIds: string[]
+}
 export type FieldType =
   | 'text'
   | 'longText'
@@ -112,14 +131,25 @@ export interface Area {
   id: string
   name: string
   description: string
-  layout: AreaLayout
   collectionIds: string[]
   blockIds: string[]
+  pageIds: string[]
   itemCount: number
   glance: string
   lastActiveAt: string
   icon: string
   coverTone: string
+  accent: string
+  pinned?: boolean
+  order?: number
+  groupId?: string | null
+}
+
+export interface AreaGroup {
+  id: string
+  name: string
+  order: number
+  collapsed?: boolean
 }
 
 export type ItemValue =
@@ -146,7 +176,17 @@ export interface Item {
 }
 
 export type ViewDisplay =
-  'stat' | 'chart' | 'table' | 'gallery' | 'cards' | 'list' | 'timeline'
+  | 'stat'
+  | 'line'
+  | 'bar'
+  | 'donut'
+  | 'table'
+  | 'cards'
+  | 'gallery'
+  | 'list'
+  | 'timeline'
+  | 'board'
+  | 'calendar'
 
 export type ViewPeriod = 'thisMonth' | 'last30Days' | '12Months' | 'allTime'
 export type AggregateOperation =
@@ -179,7 +219,8 @@ interface BlockBase {
   areaId: string
   title?: string
   order: number
-  size?: 'small' | 'medium' | 'wide' | 'tall'
+  size?: BlockSize
+  sectionId?: string
 }
 
 export type Block =
@@ -187,8 +228,13 @@ export type Block =
   | (BlockBase & { type: 'collection'; collectionId: string })
   | (BlockBase & { type: 'view'; view: ViewSpec })
   | (BlockBase & { type: 'image'; imageUrl: string; caption?: string })
+  | (BlockBase & { type: 'heading'; body: string })
   | (BlockBase & { type: 'list'; items: string[] })
+  | (BlockBase & { type: 'checklist'; items: Array<{ text: string; checked: boolean }> })
+  | (BlockBase & { type: 'divider' })
+  | (BlockBase & { type: 'callout'; body: string })
   | (BlockBase & { type: 'linkedItems'; itemIds: string[] })
+  | (BlockBase & { type: 'embeddedPage'; pageId: string })
 
 export interface ItemLink {
   id: string
@@ -210,7 +256,16 @@ export interface DataSource {
   errorMessage?: string
 }
 
-export type AreaStartFrom = 'blank' | 'dashboard' | 'collection' | 'journal'
+export type AreaStartFrom =
+  | 'blank'
+  | 'dashboard'
+  | 'collection'
+  | 'journal'
+  | 'tracker'
+  | 'routine'
+  | 'wiki'
+  | 'board'
+  | 'calendar'
 export interface CreateAreaInput {
   name: string
   description?: string

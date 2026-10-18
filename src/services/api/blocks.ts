@@ -8,6 +8,7 @@ export const blocksApi = {
       mockBlocks
         .filter((block) => block.areaId === areaId)
         .sort((a, b) => a.order - b.order),
+      [],
     )
   },
 

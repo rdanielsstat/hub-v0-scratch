@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Loader2 } from 'lucide-react'
 import {
@@ -14,7 +14,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { ScorePicker } from '@/components/score-meter'
 import { useStore } from '@/use-store'
-import { STATUSES, type Status } from '@/services/api'
+import { areasApi, collectionsApi, STATUSES, type Area, type CollectionSchema, type ItemValue, type Status } from '@/services/api'
+import { useApiResource } from '@/hooks/use-api-resource'
 import { cn } from '@/lib/utils'
 import {
   DESCRIPTION_MAX_LENGTH,
@@ -27,7 +28,10 @@ import {
 interface Props {
   open: boolean
   onClose: () => void
+  defaultAreaId?: string
 }
+
+let lastAreaCollection = ''
 
 const empty = {
   name: '',
@@ -41,9 +45,21 @@ const empty = {
   potential: 3,
 }
 
-export function QuickCaptureDialog({ open, onClose }: Props) {
+export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
   const { createProject } = useStore()
   const navigate = useNavigate()
+  const [target, setTarget] = useState<'project' | 'area'>(defaultAreaId ? 'area' : 'project')
+  const [areaId, setAreaId] = useState(defaultAreaId ?? '')
+  const [collectionId, setCollectionId] = useState(lastAreaCollection)
+  const [areaDraft, setAreaDraft] = useState<Record<string, string>>({})
+  const [areaError, setAreaError] = useState('')
+  const areasLoader = useCallback(() => areasApi.listAreas(), [])
+  const collectionsLoader = useCallback(() => collectionsApi.listCollections(areaId), [areaId])
+  const areasState = useApiResource<Area[]>(areasLoader, 'capture-areas')
+  const collectionsState = useApiResource<CollectionSchema[]>(collectionsLoader, `capture-collections:${areaId}`)
+  const areas = areasState.data ?? []
+  const collections = collectionsState.data ?? []
+  const selectedCollection = collections.find((collection) => collection.id === collectionId) ?? collections[0]
   const [form, setForm] = useState(empty)
   const [expanded, setExpanded] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -56,7 +72,37 @@ export function QuickCaptureDialog({ open, onClose }: Props) {
 
   function handleClose() {
     reset()
+    setAreaDraft({})
+    setAreaError('')
+    setTarget(defaultAreaId ? 'area' : 'project')
+    setAreaId(defaultAreaId ?? '')
     onClose()
+  }
+
+  async function handleAreaSubmit() {
+    if (!selectedCollection || !areaId || submitting) return
+    setSubmitting(true)
+    setAreaError('')
+    try {
+      const data: Record<string, ItemValue> = {}
+      for (const field of selectedCollection.fields) {
+        const value = areaDraft[field.id] ?? (field.type === 'date' ? new Date().toISOString().slice(0, 10) : '')
+        if (field.type === 'number' || field.type === 'currency' || field.type === 'duration') data[field.id] = value ? Number(value) : 0
+        else if (field.type === 'checkbox') data[field.id] = value === 'true'
+        else if (field.type === 'multiChoice') data[field.id] = value.split(',').map((part) => part.trim()).filter(Boolean)
+        else data[field.id] = value
+      }
+      const firstValue = Object.values(data).find((value) => value !== '' && value !== null && value !== undefined)
+      await collectionsApi.createItem({ areaId, collectionId: selectedCollection.id, title: firstValue === undefined ? 'Untitled item' : Array.isArray(firstValue) ? firstValue.join(', ') : String(firstValue), type: selectedCollection.id, occurredAt: new Date().toISOString(), data })
+      lastAreaCollection = selectedCollection.id
+      window.dispatchEvent(new Event('hub:area-items-changed'))
+      setAreaDraft({})
+      reset()
+      onClose()
+    } catch (caught) {
+      setAreaError(caught instanceof Error ? caught.message : 'Could not add this item.')
+      setSubmitting(false)
+    }
   }
 
   async function handleSubmit(goToDetail: boolean) {
@@ -94,6 +140,11 @@ export function QuickCaptureDialog({ open, onClose }: Props) {
         description="Get it out of your head. Only a name is required."
       />
       <DialogBody className="flex flex-col gap-4">
+        <div className="flex gap-2" role="group" aria-label="Capture destination">
+          <Button variant={target === 'project' ? 'default' : 'outline'} size="sm" aria-pressed={target === 'project'} onClick={() => setTarget('project')}>New project</Button>
+          <Button variant={target === 'area' ? 'default' : 'outline'} size="sm" aria-pressed={target === 'area'} onClick={() => setTarget('area')}>Add to an area</Button>
+        </div>
+        <div className={target === 'project' ? 'flex flex-col gap-4' : 'hidden'}>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="qc-name">Name</Label>
           <Input
@@ -220,26 +271,39 @@ export function QuickCaptureDialog({ open, onClose }: Props) {
             </div>
           </div>
         ) : null}
+        </div>
+        {target === 'area' ? <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm"><Label htmlFor="qc-area">Area</Label><Select id="qc-area" value={areaId} onChange={(event) => { setAreaId(event.target.value); setCollectionId('') }}><option value="">Choose an area</option>{areas.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</Select></label>
+            <label className="flex flex-col gap-1.5 text-sm"><Label htmlFor="qc-collection">Collection</Label><Select id="qc-collection" value={selectedCollection?.id ?? ''} onChange={(event) => setCollectionId(event.target.value)} disabled={!collections.length}><option value="">Choose a collection</option>{collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}</Select></label>
+          </div>
+          {areasState.loading || collectionsState.loading ? <p className="text-sm text-muted-foreground">Loading areas and collections</p> : null}
+          {areasState.error || collectionsState.error ? <p role="alert" className="text-sm text-destructive">Could not load areas. Try again.</p> : null}
+          {!areasState.loading && !areasState.error && areas.length === 0 ? <p className="text-sm text-muted-foreground">Create an area before adding an entry.</p> : null}
+          {areaId && !collectionsState.loading && collections.length === 0 ? <p className="text-sm text-muted-foreground">This area has no collections yet.</p> : null}
+          {selectedCollection?.fields.map((field) => <label key={field.id} className="flex flex-col gap-1.5 text-sm"><Label htmlFor={`qc-area-field-${field.id}`}>{field.name}</Label><Input id={`qc-area-field-${field.id}`} type={field.type === 'date' ? 'date' : field.type === 'number' || field.type === 'currency' || field.type === 'duration' ? 'number' : 'text'} value={areaDraft[field.id] ?? (field.type === 'date' ? new Date().toISOString().slice(0, 10) : '')} onChange={(event) => setAreaDraft((current) => ({ ...current, [field.id]: event.target.value }))} /></label>)}
+          {areaError ? <p role="alert" className="text-sm text-destructive">{areaError}</p> : null}
+        </div> : null}
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" size="lg" onClick={handleClose}>
           Cancel
         </Button>
-        <Button
+        {target === 'project' ? <Button
           variant="outline"
           size="lg"
           disabled={!form.name.trim() || submitting}
           onClick={() => handleSubmit(true)}
         >
           Capture & open
-        </Button>
+        </Button> : null}
         <Button
           size="lg"
-          disabled={!form.name.trim() || submitting}
-          onClick={() => handleSubmit(false)}
+          disabled={target === 'project' ? !form.name.trim() || submitting : !selectedCollection || !areaId || submitting}
+          onClick={() => target === 'project' ? handleSubmit(false) : handleAreaSubmit()}
         >
           {submitting ? <Loader2 className="animate-spin" /> : null}
-          Capture
+          {target === 'project' ? 'Capture' : 'Add entry'}
         </Button>
       </DialogFooter>
     </Dialog>

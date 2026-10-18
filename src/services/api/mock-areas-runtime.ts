@@ -1,12 +1,12 @@
-export type MockAreasScenario = 'normal' | 'slow' | 'error' | 'empty'
+export type MockAreasScenario = 'normal' | 'loading' | 'error' | 'empty'
 
 const requestedScenario =
   typeof window === 'undefined'
     ? null
-    : new URLSearchParams(window.location.search).get('areasState')
+    : new URLSearchParams(window.location.search).get('mockScenario')
 
 let scenario: MockAreasScenario =
-  requestedScenario === 'slow' ||
+  requestedScenario === 'loading' ||
   requestedScenario === 'error' ||
   requestedScenario === 'empty'
     ? requestedScenario
@@ -25,7 +25,7 @@ export async function mockAreasRequest<T>(
   emptyValue?: T,
 ): Promise<T> {
   await new Promise((resolve) =>
-    setTimeout(resolve, scenario === 'slow' ? 1500 : 180),
+    setTimeout(resolve, scenario === 'loading' ? 1800 : 80),
   )
   if (scenario === 'error')
     throw new Error('The Areas preview could not load. Try again.')

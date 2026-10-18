@@ -1,4 +1,5 @@
 import { HttpError } from './http'
+import { mockAreasRequest } from './mock-areas-runtime'
 import type {
   CreateProjectInput,
   Note,
@@ -308,7 +309,7 @@ const missingProject = () => new HttpError(404, 'Project not found')
 
 export const mockProjectsApi = {
   async listProjects(): Promise<Project[]> {
-    return copy(projects)
+    return mockAreasRequest(copy(projects), [])
   },
 
   async getProject(id: string): Promise<Project | null> {

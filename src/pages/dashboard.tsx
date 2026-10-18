@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Inbox, Plus } from 'lucide-react'
 import { useStore } from '@/use-store'
-import type { Status } from '@/services/api'
+import { savedFiltersApi, STATUSES, type Status } from '@/services/api'
 import { ProjectCard } from '@/components/project-card'
 import { StatsRow } from '@/components/dashboard/stats-row'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
@@ -16,10 +17,32 @@ import {
 
 export function DashboardPage({ onCapture }: { onCapture: () => void }) {
   const { projects, loading, error, refresh } = useStore()
-  const [status, setStatus] = useState<Status | 'all'>('all')
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<SortKey>('updated')
-  const [tag, setTag] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [saveError, setSaveError] = useState('')
+  const rawStatus = searchParams.get('status')
+  const status: Status | 'all' = (STATUSES as readonly string[]).includes(rawStatus ?? '') ? rawStatus as Status : 'all'
+  const query = searchParams.get('q') ?? ''
+  const sort = (['updated', 'opportunity', 'excitement', 'effort', 'target', 'name'] as const).includes(searchParams.get('sort') as SortKey) ? searchParams.get('sort') as SortKey : 'updated'
+  const tag = searchParams.get('tag')
+  function updateFilter(key: string, value: string | null) {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      if (!value || (key === 'status' && value === 'all') || (key === 'sort' && value === 'updated')) next.delete(key)
+      else next.set(key, value)
+      return next
+    })
+  }
+  async function saveFilter() {
+    const name = window.prompt('Name this filter')?.trim()
+    if (!name) return
+    try {
+      await savedFiltersApi.create({ status, tag, q: query, sort, name })
+      setSaveError('')
+      window.dispatchEvent(new Event('hub:saved-filters-changed'))
+    } catch {
+      setSaveError('Could not save this filter. Try again.')
+    }
+  }
 
   const allTags = useMemo(() => {
     const set = new Set<string>()
@@ -73,28 +96,32 @@ export function DashboardPage({ onCapture }: { onCapture: () => void }) {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Ideas</h1>
-        <p className="text-sm text-muted-foreground">
-          Everything captured. Parked, held, or on its way to a build.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Ideas</h1>
+          <p className="text-sm text-muted-foreground">
+            Everything captured. Parked, held, or on its way to a build.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => void saveFilter()}>Save filter</Button>
       </div>
+      {saveError ? <p role="alert" className="mb-3 text-sm text-destructive">{saveError}</p> : null}
 
       {error ? null : (
         <div className="mb-5 flex flex-col gap-4">
           <StatsRow
             projects={projects}
             activeStatus={status}
-            onSelect={setStatus}
+            onSelect={(value) => updateFilter('status', value)}
           />
           <DashboardToolbar
             query={query}
-            onQuery={setQuery}
+            onQuery={(value) => updateFilter('q', value)}
             sort={sort}
-            onSort={setSort}
+            onSort={(value) => updateFilter('sort', value)}
             tags={allTags}
             activeTag={tag}
-            onTag={setTag}
+            onTag={(value) => updateFilter('tag', value)}
           />
         </div>
       )}
@@ -145,9 +172,7 @@ export function DashboardPage({ onCapture }: { onCapture: () => void }) {
                 variant="outline"
                 size="lg"
                 onClick={() => {
-                  setStatus('all')
-                  setQuery('')
-                  setTag(null)
+                  setSearchParams(new URLSearchParams())
                 }}
               >
                 Clear filters

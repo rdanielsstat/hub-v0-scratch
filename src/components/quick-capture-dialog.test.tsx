@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { StoreProvider } from '@/store'
 import { QuickCaptureDialog } from './quick-capture-dialog'
+import { collectionsApi } from '@/services/api'
 import {
   DESCRIPTION_MAX_LENGTH,
   NEXT_ACTION_MAX_LENGTH,
@@ -43,6 +44,10 @@ function Harness() {
       <QuickCaptureDialog open={open} onClose={() => setOpen(false)} />
     </>
   )
+}
+
+function AreaCaptureHarness() {
+  return <QuickCaptureDialog open onClose={() => undefined} defaultAreaId="personal-inventory" />
 }
 
 function renderDialog() {
@@ -259,6 +264,23 @@ describe('QuickCaptureDialog', () => {
     expect(screen.getByDisplayValue('New idea')).toBeInTheDocument()
     expect(screen.getByDisplayValue('My pitch')).toBeInTheDocument()
     expect(screen.queryByText('Project page')).not.toBeInTheDocument()
+  })
+
+  it('captures into the default area collection using its fields', async () => {
+    const user = userEvent.setup()
+    mockApi.listProjects.mockResolvedValue([])
+    const createItem = vi.spyOn(collectionsApi, 'createItem')
+    render(
+      <MemoryRouter initialEntries={['/area/personal-inventory']}>
+        <StoreProvider><AreaCaptureHarness /></StoreProvider>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(screen.getByLabelText('Area')).toHaveValue('personal-inventory'))
+    await waitFor(() => expect(screen.getByLabelText('Collection')).toHaveValue('inventory'))
+    await user.type(screen.getByLabelText('Make'), 'Nikon')
+    await user.click(screen.getByRole('button', { name: /add entry/i }))
+    expect(createItem).toHaveBeenCalledWith(expect.objectContaining({ areaId: 'personal-inventory', collectionId: 'inventory', data: expect.objectContaining({ make: 'Nikon' }) }))
+    createItem.mockRestore()
   })
 
   it('cancel closes the dialog and resets it for next time', async () => {
