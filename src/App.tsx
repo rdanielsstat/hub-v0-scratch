@@ -15,28 +15,79 @@ import { ProjectDetailPage } from '@/pages/project-detail'
 import { NotFoundPage } from '@/pages/not-found'
 import { LoginPage } from '@/pages/login'
 import { SignupPage } from '@/pages/signup'
-import { AreaPage } from '@/pages/area-page'
-import { CollectionPage } from '@/pages/collection-page'
 
-const AreasDashboardPage = lazy(() => import('@/pages/areas-dashboard').then((module) => ({ default: module.AreasDashboardPage })))
+const AreaPage = lazy(() =>
+  import('@/pages/area-page').then((module) => ({ default: module.AreaPage })),
+)
+const CollectionPage = lazy(() =>
+  import('@/pages/collection-page').then((module) => ({
+    default: module.CollectionPage,
+  })),
+)
+const AreasDashboardPage = lazy(() =>
+  import('@/pages/areas-dashboard').then((module) => ({
+    default: module.AreasDashboardPage,
+  })),
+)
 
 export function App() {
   const { status, retry } = useAuth()
-  return <ErrorBoundary>
-    {status === 'loading' ? <div className="grid min-h-dvh place-items-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
-      : status === 'unreachable' ? <div className="grid min-h-dvh place-items-center px-4"><EmptyState variant="page" icon={WifiOff} tone="danger" title="Can’t reach the server" message="Hub couldn’t check your session. Check your connection, then try again." action={<Button size="lg" onClick={retry}>Try again</Button>} /></div>
-        : status === 'unauthenticated' ? <Routes><Route path="/signup" element={<SignupPage />} /><Route path="*" element={<LoginPage />} /></Routes>
-          : <StoreProvider><AuthenticatedApp /></StoreProvider>}
-    <Toaster />
-  </ErrorBoundary>
+  return (
+    <ErrorBoundary>
+      {status === 'loading' ? (
+        <div className="grid min-h-dvh place-items-center">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : status === 'unreachable' ? (
+        <div className="grid min-h-dvh place-items-center px-4">
+          <EmptyState
+            variant="page"
+            icon={WifiOff}
+            tone="danger"
+            title="Can’t reach the server"
+            message="Hub couldn’t check your session. Check your connection, then try again."
+            action={
+              <Button size="lg" onClick={retry}>
+                Try again
+              </Button>
+            }
+          />
+        </div>
+      ) : status === 'unauthenticated' ? (
+        <Routes>
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="*" element={<LoginPage />} />
+        </Routes>
+      ) : (
+        <StoreProvider>
+          <AuthenticatedApp />
+        </StoreProvider>
+      )}
+      <Toaster />
+    </ErrorBoundary>
+  )
+}
+
+function readSidebarPreference() {
+  try {
+    return localStorage.getItem('hub-sidebar-hidden') !== 'true'
+  } catch {
+    return true
+  }
 }
 
 function AuthenticatedApp() {
   const [captureOpen, setCaptureOpen] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('hub-sidebar-hidden') !== 'true')
+  const [sidebarOpen, setSidebarOpen] = useState(readSidebarPreference)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
-  useEffect(() => { localStorage.setItem('hub-sidebar-hidden', sidebarOpen ? 'false' : 'true') }, [sidebarOpen])
+  useEffect(() => {
+    try {
+      localStorage.setItem('hub-sidebar-hidden', sidebarOpen ? 'false' : 'true')
+    } catch {
+      // Keep the current session usable when browser storage is unavailable.
+    }
+  }, [sidebarOpen])
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
@@ -51,28 +102,60 @@ function AuthenticatedApp() {
   const areaMatch = location.pathname.match(/^\/area\/([^/]+)/)
   const defaultAreaId = areaMatch?.[1]
 
-  return <div className="min-h-dvh bg-background">
-    <AppHeader onCapture={() => setCaptureOpen(true)} onToggleSidebar={() => setSidebarOpen((open) => !open)} onOpenMobileMenu={() => setMobileOpen(true)} />
-    {mobileOpen ? <AppSidebar mobile open onClose={() => setMobileOpen(false)} /> : null}
-    <div className="flex min-h-[calc(100dvh-3.5rem)]">
-      <div className="hidden md:block"><AppSidebar open={sidebarOpen} /></div>
-      <main className="min-w-0 flex-1 px-4 pb-16 pt-6 sm:px-6">
-        <div className="mx-auto w-full max-w-6xl">
-          <Suspense fallback={<div className="grid min-h-56 place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /><span className="sr-only">Loading area</span></div>}>
-            <Routes>
-              <Route path="/" element={<DashboardPage onCapture={() => setCaptureOpen(true)} />} />
-              <Route path="/areas" element={<AreasDashboardPage />} />
-              <Route path="/area/:areaId/collection/:collectionId" element={<CollectionPage />} />
-              <Route path="/area/:areaId" element={<AreaPage onCapture={() => setCaptureOpen(true)} />} />
-              <Route path="/project/:id" element={<ProjectDetailPage />} />
-              <Route path="/login" element={<Navigate to="/" replace />} />
-              <Route path="/signup" element={<Navigate to="/" replace />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </Suspense>
+  return (
+    <div className="min-h-dvh bg-background">
+      <AppHeader
+        onCapture={() => setCaptureOpen(true)}
+        onToggleSidebar={() => setSidebarOpen((open) => !open)}
+        onOpenMobileMenu={() => setMobileOpen(true)}
+      />
+      {mobileOpen ? (
+        <AppSidebar mobile open onClose={() => setMobileOpen(false)} />
+      ) : null}
+      <div className="flex min-h-[calc(100dvh-3.5rem)]">
+        <div className="hidden md:block">
+          <AppSidebar open={sidebarOpen} />
         </div>
-      </main>
+        <main className="min-w-0 flex-1 px-4 pb-16 pt-6 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <Suspense
+              fallback={
+                <div className="grid min-h-56 place-items-center">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  <span className="sr-only">Loading area</span>
+                </div>
+              }
+            >
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <DashboardPage onCapture={() => setCaptureOpen(true)} />
+                  }
+                />
+                <Route path="/areas" element={<AreasDashboardPage />} />
+                <Route
+                  path="/area/:areaId/collection/:collectionId"
+                  element={<CollectionPage />}
+                />
+                <Route
+                  path="/area/:areaId"
+                  element={<AreaPage onCapture={() => setCaptureOpen(true)} />}
+                />
+                <Route path="/project/:id" element={<ProjectDetailPage />} />
+                <Route path="/login" element={<Navigate to="/" replace />} />
+                <Route path="/signup" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </Suspense>
+          </div>
+        </main>
+      </div>
+      <QuickCaptureDialog
+        open={captureOpen}
+        onClose={() => setCaptureOpen(false)}
+        defaultAreaId={defaultAreaId}
+      />
     </div>
-    <QuickCaptureDialog open={captureOpen} onClose={() => setCaptureOpen(false)} defaultAreaId={defaultAreaId} />
-  </div>
+  )
 }

@@ -169,11 +169,15 @@ describe('DashboardPage populated', () => {
 
   it('initializes filters from URL parameters and writes changes back to the URL', async () => {
     const user = userEvent.setup()
-    renderDashboard(vi.fn(), ['/?status=Active&tag=chess&q=analytics&sort=name'])
+    renderDashboard(vi.fn(), [
+      '/?status=Active&tag=chess&q=analytics&sort=name',
+    ])
     expect(await screen.findByText('Chess analytics')).toBeInTheDocument()
     expect(screen.queryByText('Garden planner')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^inbox/i }))
-    expect(screen.getByTestId('current-search')).toHaveTextContent('status=Inbox')
+    expect(screen.getByTestId('current-search')).toHaveTextContent(
+      'status=Inbox',
+    )
     expect(screen.queryByText('Chess analytics')).not.toBeInTheDocument()
   })
 

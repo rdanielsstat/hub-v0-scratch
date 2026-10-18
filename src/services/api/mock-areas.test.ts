@@ -13,7 +13,7 @@ describe('Areas mock APIs', () => {
       2000,
     )
     expect(await collectionsApi.listCollectionItems('inventory')).toHaveLength(
-      4,
+      25,
     )
   })
 

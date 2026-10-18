@@ -23,8 +23,8 @@ export const mockAreas: Area[] = [
     accent: 'chart-3',
     order: 0,
     blockIds: ['inventory-gallery'],
-    itemCount: 4,
-    glance: '4 items, 3 warranties ending soon',
+    itemCount: 25,
+    glance: '25 items, 3 warranties ending soon',
     lastActiveAt: stamp(1),
     icon: 'archive',
     coverTone: 'sand',
@@ -33,7 +33,7 @@ export const mockAreas: Area[] = [
     id: 'home-budget',
     name: 'Home Budget',
     description: 'A clearer picture of what comes in and where it goes.',
-    collectionIds: ['purchases', 'investments'],
+    collectionIds: ['purchases', 'investments', 'income', 'taxes'],
     pageIds: ['page-budget'],
     accent: 'chart-3',
     order: 1,
@@ -45,7 +45,7 @@ export const mockAreas: Area[] = [
       'budget-purchases',
       'budget-investments',
     ],
-    itemCount: 2004,
+    itemCount: 2014,
     glance: '2,004 entries, spending is on track this month',
     lastActiveAt: stamp(0),
     icon: 'wallet',
@@ -137,11 +137,38 @@ export const mockCollections: CollectionSchema[] = [
     description: 'Everyday spending, with the details close by.',
     fields: fields([
       ['merchant', 'Merchant', 'text'],
+      ['description', 'Description', 'text'],
       ['category', 'Category', 'choice'],
       ['amount', 'Amount', 'currency'],
       ['date', 'Date', 'date'],
       ['payment', 'Payment', 'choice'],
       ['reference', 'Related item', 'reference'],
+    ]),
+    createdAt: stamp(180),
+    updatedAt: stamp(0),
+  },
+  {
+    id: 'income',
+    areaId: 'home-budget',
+    name: 'Income',
+    description: 'Paychecks and other money coming in this month.',
+    fields: fields([
+      ['source', 'Source', 'text'],
+      ['amount', 'Amount', 'currency'],
+      ['date', 'Date', 'date'],
+    ]),
+    createdAt: stamp(180),
+    updatedAt: stamp(0),
+  },
+  {
+    id: 'taxes',
+    areaId: 'home-budget',
+    name: 'Tax savings',
+    description: 'Money set aside for upcoming taxes.',
+    fields: fields([
+      ['source', 'Source', 'text'],
+      ['amount', 'Amount', 'currency'],
+      ['date', 'Date', 'date'],
     ]),
     createdAt: stamp(180),
     updatedAt: stamp(0),
@@ -306,6 +333,95 @@ const inventoryItems: Item[] = [
   },
 ]
 
+const additionalInventoryItems: Item[] = Array.from(
+  { length: 21 },
+  (_, index) => {
+    const base = inventoryItems[index % inventoryItems.length]
+    const titles = [
+      'Ceramic table lamp',
+      'Leather weekender',
+      'Oak bookshelf',
+      'Field binoculars',
+      'Wool throw',
+      'Desk microphone',
+      'Travel tripod',
+      'Stoneware set',
+      'Canvas daypack',
+      'Floor mirror',
+      'Garden shears',
+      'Portable speaker',
+      'Reading glasses',
+      'Coffee grinder',
+      'Drawing tablet',
+      'Linen duvet',
+      'Tool chest',
+      'Studio headphones',
+      'Camping stove',
+      'Mechanical keyboard',
+      'Porcelain vase',
+    ]
+    const title = titles[index]
+    return {
+      ...structuredClone(base),
+      id: `inventory-extra-${index + 1}`,
+      title,
+      data: {
+        ...base.data,
+        make: ['Field Notes', 'Northline', 'Hearth & Hand', 'All-City'][
+          index % 4
+        ],
+        model: title,
+        serial: `HN-${204900 + index}`,
+        location: ['Studio', 'Living room', 'Hall closet', 'Garage'][index % 4],
+      },
+      createdAt: stamp(40 + index * 7),
+      updatedAt: stamp(index + 1),
+    }
+  },
+)
+
+const financeItems: Item[] = [
+  ...[
+    ['Primary paycheck', 5200],
+    ['Partner paycheck', 2600],
+    ['Freelance work', 800],
+    ['Interest', 180],
+  ].map(([source, amount], index): Item => ({
+    id: `income-${index + 1}`,
+    areaId: 'home-budget',
+    collectionId: 'income',
+    title: String(source),
+    type: 'income',
+    occurredAt: stamp(index),
+    data: {
+      source: String(source),
+      amount: Number(amount),
+      date: stamp(index).slice(0, 10),
+    },
+    createdAt: stamp(index),
+    updatedAt: stamp(index),
+  })),
+  ...[
+    ['Quarterly estimate', 900],
+    ['Federal withholding', 420],
+    ['State withholding', 180],
+  ].map(([source, amount], index): Item => ({
+    id: `tax-${index + 1}`,
+    areaId: 'home-budget',
+    collectionId: 'taxes',
+    title: String(source),
+    type: 'tax',
+    occurredAt: stamp(index),
+    data: {
+      source: String(source),
+      amount: Number(amount),
+      date: stamp(index).slice(0, 10),
+    },
+    createdAt: stamp(index),
+    updatedAt: stamp(index),
+  })),
+]
+
 const categories = [
   'Groceries',
   'Home',
@@ -328,6 +444,8 @@ const merchants = [
 
 export const mockItems: Item[] = [
   ...inventoryItems,
+  ...additionalInventoryItems,
+  ...financeItems,
   ...Array.from({ length: 2000 }, (_, index): Item => {
     const daysAgo = index % 365
     const date = stamp(daysAgo)
@@ -338,11 +456,30 @@ export const mockItems: Item[] = [
       id: `purchase-${String(index + 1).padStart(4, '0')}`,
       areaId: 'home-budget',
       collectionId: 'purchases',
-      title: merchants[index % merchants.length],
+      title: [
+        'Weekly pantry restock',
+        'Lunch with a friend',
+        'Transit pass reload',
+        'A new field notebook',
+        'Utility bill payment',
+        'Weekend market flowers',
+        'Pharmacy essentials',
+        'Hardware for the studio',
+      ][index % 8],
       type: 'purchase',
       occurredAt: date,
       data: {
         merchant: merchants[index % merchants.length],
+        description: [
+          'Weekly pantry restock',
+          'Lunch with a friend',
+          'Transit pass reload',
+          'A new field notebook',
+          'Utility bill payment',
+          'Weekend market flowers',
+          'Pharmacy essentials',
+          'Hardware for the studio',
+        ][index % 8],
         category,
         amount,
         date: date.slice(0, 10),
@@ -407,7 +544,12 @@ export const mockItems: Item[] = [
       title: ['Strength session', 'Easy run', 'Long walk'][index % 3],
       type: 'workout',
       occurredAt: date,
-      data: { workout: ['Strength session', 'Easy run', 'Long walk'][index % 3], duration: 25 + (index % 5) * 10, muscles: ['Full body'], date: date.slice(0, 10) },
+      data: {
+        workout: ['Strength session', 'Easy run', 'Long walk'][index % 3],
+        duration: 25 + (index % 5) * 10,
+        muscles: ['Full body'],
+        date: date.slice(0, 10),
+      },
       createdAt: date,
       updatedAt: date,
     }
@@ -421,7 +563,11 @@ export const mockItems: Item[] = [
       title: `Recovery reading ${index + 1}`,
       type: 'recovery',
       occurredAt: date,
-      data: { sleep: 6.5 + (index % 4) * 0.4, recovery: 62 + (index * 7) % 34, date: date.slice(0, 10) },
+      data: {
+        sleep: 6.5 + (index % 4) * 0.4,
+        recovery: 62 + ((index * 7) % 34),
+        date: date.slice(0, 10),
+      },
       createdAt: date,
       updatedAt: date,
     }
@@ -435,7 +581,12 @@ export const mockItems: Item[] = [
       title: ['Cedar Loop', 'Lake Overlook', 'Pine Ridge'][index % 3],
       type: 'hike',
       occurredAt: date,
-      data: { trail: ['Cedar Loop', 'Lake Overlook', 'Pine Ridge'][index % 3], distance: 2.4 + (index % 6) * 0.7, date: date.slice(0, 10), photos: '' },
+      data: {
+        trail: ['Cedar Loop', 'Lake Overlook', 'Pine Ridge'][index % 3],
+        distance: 2.4 + (index % 6) * 0.7,
+        date: date.slice(0, 10),
+        photos: '',
+      },
       createdAt: date,
       updatedAt: date,
     }
@@ -495,7 +646,7 @@ export const mockBlocks: Block[] = [
     view: {
       id: 'income',
       title: 'Income',
-      collectionId: 'purchases',
+      collectionId: 'income',
       display: 'stat',
       filter: [],
       period: 'thisMonth',
@@ -512,7 +663,7 @@ export const mockBlocks: Block[] = [
     view: {
       id: 'taxes',
       title: 'Set aside for taxes',
-      collectionId: 'purchases',
+      collectionId: 'taxes',
       display: 'stat',
       filter: [],
       period: 'thisMonth',
@@ -567,7 +718,7 @@ export const mockBlocks: Block[] = [
       id: 'accounts',
       title: 'Investments by account',
       collectionId: 'investments',
-      display: 'bar',
+      display: 'donut',
       filter: [],
       period: 'allTime',
       groupBy: 'account',
@@ -582,7 +733,16 @@ export const mockBlocks: Block[] = [
     type: 'view',
     order: 0,
     size: 'medium',
-    view: { id: 'weight-trend', title: 'Weight trend', collectionId: 'weight-log', display: 'line', filter: [], period: '12Months', groupBy: 'month', aggregate: { operation: 'average', fieldId: 'weight' } },
+    view: {
+      id: 'weight-trend',
+      title: 'Weight trend',
+      collectionId: 'weight-log',
+      display: 'line',
+      filter: [],
+      period: '12Months',
+      groupBy: 'month',
+      aggregate: { operation: 'average', fieldId: 'weight' },
+    },
   },
   {
     id: 'health-workouts',
@@ -590,7 +750,16 @@ export const mockBlocks: Block[] = [
     type: 'view',
     order: 1,
     size: 'medium',
-    view: { id: 'workout-types', title: 'Movement', collectionId: 'workouts', display: 'bar', filter: [], period: '12Months', groupBy: 'workout', aggregate: { operation: 'count' } },
+    view: {
+      id: 'workout-types',
+      title: 'Movement',
+      collectionId: 'workouts',
+      display: 'bar',
+      filter: [],
+      period: '12Months',
+      groupBy: 'workout',
+      aggregate: { operation: 'count' },
+    },
   },
   {
     id: 'health-recovery',
@@ -598,7 +767,15 @@ export const mockBlocks: Block[] = [
     type: 'view',
     order: 2,
     size: 'small',
-    view: { id: 'recovery-score', title: 'Average recovery', collectionId: 'recovery', display: 'stat', filter: [], period: '12Months', aggregate: { operation: 'average', fieldId: 'recovery' } },
+    view: {
+      id: 'recovery-score',
+      title: 'Average recovery',
+      collectionId: 'recovery',
+      display: 'stat',
+      filter: [],
+      period: '12Months',
+      aggregate: { operation: 'average', fieldId: 'recovery' },
+    },
   },
   {
     id: 'outdoors-hikes',
@@ -606,7 +783,16 @@ export const mockBlocks: Block[] = [
     type: 'view',
     order: 0,
     size: 'wide',
-    view: { id: 'hike-log', title: 'Recent hikes', collectionId: 'hikes', display: 'timeline', filter: [], period: 'allTime', sort: { fieldId: 'date', direction: 'desc' }, limit: 14 },
+    view: {
+      id: 'hike-log',
+      title: 'Recent hikes',
+      collectionId: 'hikes',
+      display: 'timeline',
+      filter: [],
+      period: 'allTime',
+      sort: { fieldId: 'date', direction: 'desc' },
+      limit: 14,
+    },
   },
   {
     id: 'inventory-gallery',
@@ -621,7 +807,7 @@ export const mockBlocks: Block[] = [
       display: 'gallery',
       filter: [],
       limit: 48,
-      columns: ['make', 'model', 'amount', 'location'],
+      columns: ['photo', 'make', 'model', 'amount', 'location'],
       size: 'wide',
     },
   },

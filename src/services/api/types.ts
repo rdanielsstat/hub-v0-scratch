@@ -152,6 +152,18 @@ export interface AreaGroup {
   collapsed?: boolean
 }
 
+export interface AreasListPreferences {
+  density: 'compact' | 'comfortable' | 'cards'
+  sort: 'manual' | 'name' | 'lastActive'
+  groupBy: 'none' | 'sidebar'
+  details: {
+    description: boolean
+    collectionCount: boolean
+    itemCount: boolean
+    lastActive: boolean
+  }
+}
+
 export type ItemValue =
   | string
   | number
@@ -230,7 +242,10 @@ export type Block =
   | (BlockBase & { type: 'image'; imageUrl: string; caption?: string })
   | (BlockBase & { type: 'heading'; body: string })
   | (BlockBase & { type: 'list'; items: string[] })
-  | (BlockBase & { type: 'checklist'; items: Array<{ text: string; checked: boolean }> })
+  | (BlockBase & {
+      type: 'checklist'
+      items: Array<{ text: string; checked: boolean }>
+    })
   | (BlockBase & { type: 'divider' })
   | (BlockBase & { type: 'callout'; body: string })
   | (BlockBase & { type: 'linkedItems'; itemIds: string[] })

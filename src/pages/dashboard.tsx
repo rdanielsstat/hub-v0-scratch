@@ -20,14 +20,34 @@ export function DashboardPage({ onCapture }: { onCapture: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const [saveError, setSaveError] = useState('')
   const rawStatus = searchParams.get('status')
-  const status: Status | 'all' = (STATUSES as readonly string[]).includes(rawStatus ?? '') ? rawStatus as Status : 'all'
+  const status: Status | 'all' = (STATUSES as readonly string[]).includes(
+    rawStatus ?? '',
+  )
+    ? (rawStatus as Status)
+    : 'all'
   const query = searchParams.get('q') ?? ''
-  const sort = (['updated', 'opportunity', 'excitement', 'effort', 'target', 'name'] as const).includes(searchParams.get('sort') as SortKey) ? searchParams.get('sort') as SortKey : 'updated'
+  const sort = (
+    [
+      'updated',
+      'opportunity',
+      'excitement',
+      'effort',
+      'target',
+      'name',
+    ] as const
+  ).includes(searchParams.get('sort') as SortKey)
+    ? (searchParams.get('sort') as SortKey)
+    : 'updated'
   const tag = searchParams.get('tag')
   function updateFilter(key: string, value: string | null) {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous)
-      if (!value || (key === 'status' && value === 'all') || (key === 'sort' && value === 'updated')) next.delete(key)
+      if (
+        !value ||
+        (key === 'status' && value === 'all') ||
+        (key === 'sort' && value === 'updated')
+      )
+        next.delete(key)
       else next.set(key, value)
       return next
     })
@@ -103,9 +123,15 @@ export function DashboardPage({ onCapture }: { onCapture: () => void }) {
             Everything captured. Parked, held, or on its way to a build.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void saveFilter()}>Save filter</Button>
+        <Button variant="outline" size="sm" onClick={() => void saveFilter()}>
+          Save filter
+        </Button>
       </div>
-      {saveError ? <p role="alert" className="mb-3 text-sm text-destructive">{saveError}</p> : null}
+      {saveError ? (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          {saveError}
+        </p>
+      ) : null}
 
       {error ? null : (
         <div className="mb-5 flex flex-col gap-4">

@@ -10,7 +10,9 @@ export function useApiResource<T>(loader: () => Promise<T>, key: string) {
     try {
       setData(await loader())
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error('Unable to load data'))
+      setError(
+        caught instanceof Error ? caught : new Error('Unable to load data'),
+      )
     } finally {
       setLoading(false)
     }
@@ -25,12 +27,17 @@ export function useApiResource<T>(loader: () => Promise<T>, key: string) {
         }
       })
       .catch((caught: unknown) => {
-        if (active) setError(caught instanceof Error ? caught : new Error('Unable to load data'))
+        if (active)
+          setError(
+            caught instanceof Error ? caught : new Error('Unable to load data'),
+          )
       })
       .finally(() => {
         if (active) setLoading(false)
       })
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [loader, key])
   return { data, error, loading, refresh, setData }
 }

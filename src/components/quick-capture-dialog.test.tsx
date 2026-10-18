@@ -47,7 +47,13 @@ function Harness() {
 }
 
 function AreaCaptureHarness() {
-  return <QuickCaptureDialog open onClose={() => undefined} defaultAreaId="personal-inventory" />
+  return (
+    <QuickCaptureDialog
+      open
+      onClose={() => undefined}
+      defaultAreaId="personal-inventory"
+    />
+  )
 }
 
 function renderDialog() {
@@ -272,14 +278,29 @@ describe('QuickCaptureDialog', () => {
     const createItem = vi.spyOn(collectionsApi, 'createItem')
     render(
       <MemoryRouter initialEntries={['/area/personal-inventory']}>
-        <StoreProvider><AreaCaptureHarness /></StoreProvider>
+        <StoreProvider>
+          <AreaCaptureHarness />
+        </StoreProvider>
       </MemoryRouter>,
     )
-    await waitFor(() => expect(screen.getByLabelText('Area')).toHaveValue('personal-inventory'))
-    await waitFor(() => expect(screen.getByLabelText('Collection')).toHaveValue('inventory'))
+    expect(
+      screen.getByRole('button', { name: 'Add to an area' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() =>
+      expect(screen.getByLabelText('Area')).toHaveValue('personal-inventory'),
+    )
+    await waitFor(() =>
+      expect(screen.getByLabelText('Collection')).toHaveValue('inventory'),
+    )
     await user.type(screen.getByLabelText('Make'), 'Nikon')
     await user.click(screen.getByRole('button', { name: /add entry/i }))
-    expect(createItem).toHaveBeenCalledWith(expect.objectContaining({ areaId: 'personal-inventory', collectionId: 'inventory', data: expect.objectContaining({ make: 'Nikon' }) }))
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        areaId: 'personal-inventory',
+        collectionId: 'inventory',
+        data: expect.objectContaining({ make: 'Nikon' }),
+      }),
+    )
     createItem.mockRestore()
   })
 

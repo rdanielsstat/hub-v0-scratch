@@ -30,5 +30,9 @@ export { blocksApi } from './blocks'
 export { itemLinksApi } from './item-links'
 export { savedFiltersApi } from './saved-filters'
 export { areaLayoutApi } from './area-layout'
-export type { ProjectFilterState, ProjectSortKey, SavedProjectFilter } from './saved-filters'
+export type {
+  ProjectFilterState,
+  ProjectSortKey,
+  SavedProjectFilter,
+} from './saved-filters'
 export { dataSourcesApi } from './data-sources'

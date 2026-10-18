@@ -68,7 +68,10 @@ export const collectionsApi = {
   },
 
   async getItem(id: string): Promise<Item | null> {
-    return mockAreasRequest(mockItems.find((item) => item.id === id) ?? null, null)
+    return mockAreasRequest(
+      mockItems.find((item) => item.id === id) ?? null,
+      null,
+    )
   },
 
   async createItem(

@@ -1,12 +1,7 @@
 import type { Status } from './types'
 
 export type ProjectSortKey =
-  | 'updated'
-  | 'opportunity'
-  | 'excitement'
-  | 'effort'
-  | 'target'
-  | 'name'
+  'updated' | 'opportunity' | 'excitement' | 'effort' | 'target' | 'name'
 
 export interface ProjectFilterState {
   status: Status | 'all'
@@ -42,19 +37,25 @@ let filters: SavedProjectFilter[] = [
   },
 ]
 
-const copy = <T,>(value: T): T => structuredClone(value)
+const copy = <T>(value: T): T => structuredClone(value)
 
 export const savedFiltersApi = {
   async list(): Promise<SavedProjectFilter[]> {
     return copy([...filters].sort((a, b) => a.order - b.order))
   },
   async create(input: Omit<SavedProjectFilter, 'id' | 'order'>) {
-    const filter = { ...copy(input), id: `filter-${crypto.randomUUID()}`, order: filters.length }
+    const filter = {
+      ...copy(input),
+      id: `filter-${crypto.randomUUID()}`,
+      order: filters.length,
+    }
     filters = [...filters, filter]
     return copy(filter)
   },
   async update(id: string, patch: Partial<Omit<SavedProjectFilter, 'id'>>) {
-    filters = filters.map((filter) => filter.id === id ? { ...filter, ...copy(patch) } : filter)
+    filters = filters.map((filter) =>
+      filter.id === id ? { ...filter, ...copy(patch) } : filter,
+    )
     return copy(filters.find((filter) => filter.id === id) ?? null)
   },
   async reorder(ids: string[]) {
@@ -64,6 +65,8 @@ export const savedFiltersApi = {
     })
   },
   async remove(id: string) {
-    filters = filters.filter((filter) => filter.id !== id).map((filter, order) => ({ ...filter, order }))
+    filters = filters
+      .filter((filter) => filter.id !== id)
+      .map((filter, order) => ({ ...filter, order }))
   },
 }
