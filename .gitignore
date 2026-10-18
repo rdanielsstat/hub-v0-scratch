@@ -1,0 +1,15 @@
+# Dependencies / build
+node_modules
+dist
+*.tsbuildinfo
+.vite
+
+# Logs / cache
+pnpm-debug.log*
+.eslintcache
+
+# Env
+.env
+.env.local
+
+.DS_Store
