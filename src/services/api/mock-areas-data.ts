@@ -1,0 +1,576 @@
+import type {
+  Area,
+  Block,
+  CollectionSchema,
+  DataSource,
+  Item,
+  ItemLink,
+} from './types'
+
+const stamp = (daysAgo = 0) => {
+  const date = new Date()
+  date.setDate(date.getDate() - daysAgo)
+  return date.toISOString()
+}
+
+export const mockAreas: Area[] = [
+  {
+    id: 'personal-inventory',
+    name: 'Personal Inventory',
+    description: 'A considered record of the things I own and care for.',
+    layout: 'grid',
+    collectionIds: ['inventory'],
+    blockIds: ['inventory-gallery'],
+    itemCount: 4,
+    glance: '4 items, 3 warranties ending soon',
+    lastActiveAt: stamp(1),
+    icon: 'archive',
+    coverTone: 'sand',
+  },
+  {
+    id: 'home-budget',
+    name: 'Home Budget',
+    description: 'A clearer picture of what comes in and where it goes.',
+    layout: 'grid',
+    collectionIds: ['purchases', 'investments'],
+    blockIds: [
+      'budget-spent',
+      'budget-income',
+      'budget-taxes',
+      'budget-spending',
+      'budget-purchases',
+      'budget-investments',
+    ],
+    itemCount: 2004,
+    glance: '2,004 entries, spending is on track this month',
+    lastActiveAt: stamp(0),
+    icon: 'wallet',
+    coverTone: 'sage',
+  },
+  {
+    id: 'health-fitness',
+    name: 'Health and Fitness',
+    description: 'Small habits, steady progress, and room to notice patterns.',
+    layout: 'grid',
+    collectionIds: ['weight-log', 'workouts', 'recovery'],
+    blockIds: ['health-weight', 'health-workouts'],
+    itemCount: 82,
+    glance: '82 logs, sleep sync is up to date',
+    lastActiveAt: stamp(2),
+    icon: 'activity',
+    coverTone: 'blue',
+  },
+  {
+    id: 'outdoors',
+    name: 'Outdoors',
+    description: 'Trails, trips, and the places I want to remember.',
+    layout: 'grid',
+    collectionIds: ['hikes'],
+    blockIds: ['outdoors-hikes'],
+    itemCount: 14,
+    glance: '14 hikes, 2 trips on the wishlist',
+    lastActiveAt: stamp(3),
+    icon: 'mountain',
+    coverTone: 'clay',
+  },
+  {
+    id: 'spirituality-code',
+    name: 'Spirituality and Moral Code',
+    description: 'Ideas and practices that help me live with intention.',
+    layout: 'stack',
+    collectionIds: ['concepts'],
+    blockIds: ['creed', 'concepts-list'],
+    itemCount: 3,
+    glance: 'A personal creed and 3 guiding concepts',
+    lastActiveAt: stamp(5),
+    icon: 'sun',
+    coverTone: 'lavender',
+  },
+]
+
+const fields = (
+  definitions: Array<
+    [string, string, CollectionSchema['fields'][number]['type'], string?]
+  >,
+) =>
+  definitions.map(([id, name, type, unit], order) => ({
+    id,
+    name,
+    type,
+    unit,
+    order,
+  }))
+
+export const mockCollections: CollectionSchema[] = [
+  {
+    id: 'inventory',
+    areaId: 'personal-inventory',
+    name: 'Personal Inventory',
+    description: 'Things worth keeping track of.',
+    fields: fields([
+      ['make', 'Make', 'text'],
+      ['model', 'Model', 'text'],
+      ['serial', 'Serial number', 'text'],
+      ['purchaseDate', 'Purchase date', 'date'],
+      ['amount', 'Amount', 'currency'],
+      ['warrantyEnds', 'Warranty ends', 'date'],
+      ['location', 'Location', 'choice'],
+      ['photo', 'Photo', 'image'],
+    ]),
+    createdAt: stamp(120),
+    updatedAt: stamp(1),
+  },
+  {
+    id: 'purchases',
+    areaId: 'home-budget',
+    name: 'Purchases',
+    description: 'Everyday spending, with the details close by.',
+    fields: fields([
+      ['merchant', 'Merchant', 'text'],
+      ['category', 'Category', 'choice'],
+      ['amount', 'Amount', 'currency'],
+      ['date', 'Date', 'date'],
+      ['payment', 'Payment', 'choice'],
+      ['reference', 'Related item', 'reference'],
+    ]),
+    createdAt: stamp(180),
+    updatedAt: stamp(0),
+  },
+  {
+    id: 'investments',
+    areaId: 'home-budget',
+    name: 'Investments',
+    description: 'Accounts and the holdings inside them.',
+    fields: fields([
+      ['account', 'Account', 'text'],
+      ['kind', 'Type', 'choice'],
+      ['value', 'Value', 'currency'],
+      ['change', 'Change', 'number', '%'],
+    ]),
+    createdAt: stamp(150),
+    updatedAt: stamp(4),
+  },
+  {
+    id: 'weight-log',
+    areaId: 'health-fitness',
+    name: 'Weight log',
+    description: 'A gentle record of daily measurements.',
+    fields: fields([
+      ['weight', 'Weight', 'number', 'lb'],
+      ['date', 'Date', 'date'],
+    ]),
+    createdAt: stamp(80),
+    updatedAt: stamp(2),
+  },
+  {
+    id: 'workouts',
+    areaId: 'health-fitness',
+    name: 'Workouts',
+    description: 'Movement, duration, and muscle groups.',
+    fields: fields([
+      ['workout', 'Workout', 'text'],
+      ['duration', 'Duration', 'duration'],
+      ['muscles', 'Muscle groups', 'multiChoice'],
+      ['date', 'Date', 'date'],
+    ]),
+    createdAt: stamp(80),
+    updatedAt: stamp(3),
+  },
+  {
+    id: 'recovery',
+    areaId: 'health-fitness',
+    name: 'Sleep and recovery',
+    description: 'Readings from an example connected source.',
+    fields: fields([
+      ['sleep', 'Sleep', 'duration'],
+      ['recovery', 'Recovery', 'number', '%'],
+      ['date', 'Date', 'date'],
+    ]),
+    createdAt: stamp(80),
+    updatedAt: stamp(2),
+  },
+  {
+    id: 'hikes',
+    areaId: 'outdoors',
+    name: 'Hikes',
+    description: 'Routes, stories, and gear that made the day.',
+    fields: fields([
+      ['trail', 'Trail', 'text'],
+      ['distance', 'Distance', 'number', 'mi'],
+      ['date', 'Date', 'date'],
+      ['photos', 'Photos', 'image'],
+    ]),
+    createdAt: stamp(190),
+    updatedAt: stamp(3),
+  },
+  {
+    id: 'concepts',
+    areaId: 'spirituality-code',
+    name: 'Concepts',
+    description: 'Principles I want to keep returning to.',
+    fields: fields([
+      ['definition', 'Definition', 'longText'],
+      ['principles', 'Principles', 'longText'],
+    ]),
+    createdAt: stamp(200),
+    updatedAt: stamp(5),
+  },
+]
+
+const inventoryItems: Item[] = [
+  {
+    id: 'inventory-camera',
+    areaId: 'personal-inventory',
+    collectionId: 'inventory',
+    title: 'Rangefinder camera',
+    type: 'inventory',
+    data: {
+      make: 'Nikon',
+      model: 'FM2',
+      serial: 'N-2048117',
+      purchaseDate: '2024-05-18',
+      amount: 820,
+      warrantyEnds: '2026-12-14',
+      location: 'Studio shelf',
+      photo: '/areas/inventory-camera.png',
+    },
+    createdAt: stamp(160),
+    updatedAt: stamp(1),
+  },
+  {
+    id: 'inventory-chair',
+    areaId: 'personal-inventory',
+    collectionId: 'inventory',
+    title: 'Walnut lounge chair',
+    type: 'inventory',
+    data: {
+      make: 'Hearth & Hand',
+      model: 'Lounge 02',
+      serial: 'HH-88420',
+      purchaseDate: '2023-11-09',
+      amount: 1250,
+      warrantyEnds: '2026-11-22',
+      location: 'Living room',
+      photo: '/areas/inventory-chair.png',
+    },
+    createdAt: stamp(250),
+    updatedAt: stamp(7),
+  },
+  {
+    id: 'inventory-watch',
+    areaId: 'personal-inventory',
+    collectionId: 'inventory',
+    title: 'Everyday watch',
+    type: 'inventory',
+    data: {
+      make: 'Junghans',
+      model: 'Max Bill',
+      serial: 'JM-41028',
+      purchaseDate: '2025-03-04',
+      amount: 690,
+      warrantyEnds: '2026-12-03',
+      location: 'Bedroom dresser',
+      photo: '/areas/inventory-watch.png',
+    },
+    createdAt: stamp(90),
+    updatedAt: stamp(11),
+  },
+  {
+    id: 'inventory-bike',
+    areaId: 'personal-inventory',
+    collectionId: 'inventory',
+    title: 'Steel road bicycle',
+    type: 'inventory',
+    data: {
+      make: 'All-City',
+      model: 'Space Horse',
+      serial: 'AC-743991',
+      purchaseDate: '2022-06-12',
+      amount: 1800,
+      warrantyEnds: '2027-06-12',
+      location: 'Garage',
+      photo: '/areas/inventory-bike.png',
+    },
+    createdAt: stamp(340),
+    updatedAt: stamp(28),
+  },
+]
+
+const categories = [
+  'Groceries',
+  'Home',
+  'Dining',
+  'Transport',
+  'Health',
+  'Utilities',
+  'Personal',
+]
+const merchants = [
+  'Market Basket',
+  'Corner Table',
+  'Northline Books',
+  'City Transit',
+  'Willow Pharmacy',
+  'Field Supply',
+  'Studio Goods',
+  'Bright Electric',
+]
+
+export const mockItems: Item[] = [
+  ...inventoryItems,
+  ...Array.from({ length: 2000 }, (_, index): Item => {
+    const daysAgo = index % 365
+    const date = stamp(daysAgo)
+    const category = categories[index % categories.length]
+    const amount =
+      Math.round((18 + ((index * 37) % 280) + (index % 4) * 0.75) * 100) / 100
+    return {
+      id: `purchase-${String(index + 1).padStart(4, '0')}`,
+      areaId: 'home-budget',
+      collectionId: 'purchases',
+      title: merchants[index % merchants.length],
+      type: 'purchase',
+      occurredAt: date,
+      data: {
+        merchant: merchants[index % merchants.length],
+        category,
+        amount,
+        date: date.slice(0, 10),
+        payment: ['Card', 'Checking', 'Cash'][index % 3],
+        ...(index % 113 === 0
+          ? {
+              reference: {
+                itemId: 'inventory-camera',
+                title: 'Rangefinder camera',
+                areaId: 'personal-inventory',
+              },
+            }
+          : {}),
+      },
+      createdAt: date,
+      updatedAt: date,
+    }
+  }),
+  ...[
+    ['Brokerage', 'Investment account', 54280, 5.2],
+    ['Roth IRA', 'Retirement', 36240, 8.4],
+    ['401(k)', 'Retirement', 82710, 4.7],
+    ['Emergency fund', 'Cash reserve', 18450, 1.1],
+  ].map(([account, kind, value, change], index): Item => ({
+    id: `investment-${index + 1}`,
+    areaId: 'home-budget',
+    collectionId: 'investments',
+    title: String(account),
+    type: 'investment',
+    data: {
+      account: String(account),
+      kind: String(kind),
+      value: Number(value),
+      change: Number(change),
+    },
+    createdAt: stamp(200),
+    updatedAt: stamp(4),
+  })),
+  ...Array.from({ length: 42 }, (_, index): Item => {
+    const date = stamp(index * 2)
+    return {
+      id: `weight-${index + 1}`,
+      areaId: 'health-fitness',
+      collectionId: 'weight-log',
+      title: `Weigh-in ${index + 1}`,
+      type: 'weight',
+      occurredAt: date,
+      data: {
+        weight: 152 - index * 0.08 + (index % 5) * 0.3,
+        date: date.slice(0, 10),
+      },
+      createdAt: date,
+      updatedAt: date,
+    }
+  }),
+  ...[
+    [
+      'Acceptance',
+      'Making room for what is here without giving up the ability to change it.',
+      'Notice before reacting; allow feelings to pass through.',
+    ],
+    [
+      'Tolerance',
+      'Holding space for difference while staying rooted in care.',
+      'Stay curious; keep boundaries clear.',
+    ],
+    [
+      'Boundaries',
+      'The honest shape of what I can give and what I need.',
+      'Say the true thing early; let no be complete.',
+    ],
+  ].map(([title, definition, principles], index): Item => ({
+    id: `concept-${index + 1}`,
+    areaId: 'spirituality-code',
+    collectionId: 'concepts',
+    title,
+    type: 'concept',
+    data: { definition, principles },
+    createdAt: stamp(20 + index),
+    updatedAt: stamp(5),
+  })),
+]
+
+export const mockBlocks: Block[] = [
+  {
+    id: 'budget-spent',
+    areaId: 'home-budget',
+    type: 'view',
+    order: 0,
+    size: 'medium',
+    view: {
+      id: 'spent',
+      title: 'Spent this month',
+      collectionId: 'purchases',
+      display: 'stat',
+      filter: [],
+      period: 'thisMonth',
+      aggregate: { operation: 'sum', fieldId: 'amount' },
+      size: 'medium',
+    },
+  },
+  {
+    id: 'budget-income',
+    areaId: 'home-budget',
+    type: 'view',
+    order: 1,
+    size: 'small',
+    view: {
+      id: 'income',
+      title: 'Income',
+      collectionId: 'purchases',
+      display: 'stat',
+      filter: [],
+      period: 'thisMonth',
+      aggregate: { operation: 'sum', fieldId: 'amount' },
+      size: 'small',
+    },
+  },
+  {
+    id: 'budget-taxes',
+    areaId: 'home-budget',
+    type: 'view',
+    order: 2,
+    size: 'small',
+    view: {
+      id: 'taxes',
+      title: 'Set aside for taxes',
+      collectionId: 'purchases',
+      display: 'stat',
+      filter: [],
+      period: 'thisMonth',
+      aggregate: { operation: 'sum', fieldId: 'amount' },
+      size: 'small',
+    },
+  },
+  {
+    id: 'budget-spending',
+    areaId: 'home-budget',
+    type: 'view',
+    order: 3,
+    size: 'wide',
+    view: {
+      id: 'spending',
+      title: 'Spending over time',
+      collectionId: 'purchases',
+      display: 'chart',
+      filter: [],
+      period: '12Months',
+      groupBy: 'month',
+      aggregate: { operation: 'sum', fieldId: 'amount' },
+      chartType: 'bar',
+      size: 'wide',
+    },
+  },
+  {
+    id: 'budget-purchases',
+    areaId: 'home-budget',
+    type: 'view',
+    order: 4,
+    size: 'wide',
+    view: {
+      id: 'purchases',
+      title: 'Recent purchases',
+      collectionId: 'purchases',
+      display: 'table',
+      filter: [],
+      period: 'last30Days',
+      limit: 15,
+      columns: ['merchant', 'category', 'amount', 'date'],
+      size: 'wide',
+    },
+  },
+  {
+    id: 'budget-investments',
+    areaId: 'home-budget',
+    type: 'view',
+    order: 5,
+    size: 'medium',
+    view: {
+      id: 'accounts',
+      title: 'Investments by account',
+      collectionId: 'investments',
+      display: 'chart',
+      filter: [],
+      period: 'allTime',
+      groupBy: 'account',
+      aggregate: { operation: 'sum', fieldId: 'value' },
+      chartType: 'donut',
+      size: 'medium',
+    },
+  },
+  {
+    id: 'inventory-gallery',
+    areaId: 'personal-inventory',
+    type: 'view',
+    order: 0,
+    size: 'wide',
+    view: {
+      id: 'inventory-gallery-view',
+      title: 'Personal Inventory',
+      collectionId: 'inventory',
+      display: 'gallery',
+      filter: [],
+      limit: 48,
+      columns: ['make', 'model', 'amount', 'location'],
+      size: 'wide',
+    },
+  },
+  {
+    id: 'creed',
+    areaId: 'spirituality-code',
+    type: 'text',
+    title: 'A personal creed',
+    order: 0,
+    body: 'Be curious before being certain. Make room for tenderness. Keep promises to myself and the people I love.',
+  },
+  {
+    id: 'concepts-list',
+    areaId: 'spirituality-code',
+    type: 'collection',
+    title: 'Guiding concepts',
+    order: 1,
+    collectionId: 'concepts',
+  },
+]
+
+export const mockItemLinks: ItemLink[] = []
+export const mockDataSources: DataSource[] = [
+  {
+    id: 'source-recovery',
+    collectionId: 'recovery',
+    name: 'Recovery readings',
+    provider: 'Example fitness tracker',
+    kind: 'service',
+    status: 'connected',
+    lastSyncedAt: stamp(0),
+    nextSyncAt: stamp(-1),
+  },
+]
+
+export const cloneMockData = <T>(value: T): T => structuredClone(value)

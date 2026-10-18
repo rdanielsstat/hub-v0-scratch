@@ -23,3 +23,9 @@ export const api: ApiClient = USE_MOCK_API
 export const authApi = USE_MOCK_API ? mockAuthApi : realAuthApi
 export { HttpError } from './http'
 export * from './types'
+export { areasApi, getMockAreasScenario, setMockAreasScenario } from './areas'
+export { collectionsApi } from './collections'
+export { entriesApi } from './entries'
+export { blocksApi } from './blocks'
+export { itemLinksApi } from './item-links'
+export { dataSourcesApi } from './data-sources'

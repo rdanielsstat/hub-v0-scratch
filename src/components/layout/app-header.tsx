@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { LogOut, Moon, Plus, Sun } from 'lucide-react'
 import { useAuth } from '@/use-auth'
 import { Button } from '@/components/ui/button'
@@ -45,6 +45,26 @@ export function AppHeader({ onCapture }: { onCapture: () => void }) {
             capture · triage · graduate
           </span>
         </Link>
+
+        <nav aria-label="Main navigation" className="flex items-center gap-1">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              `rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`
+            }
+          >
+            Projects
+          </NavLink>
+          <NavLink
+            to="/areas"
+            className={({ isActive }) =>
+              `rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`
+            }
+          >
+            Areas
+          </NavLink>
+        </nav>
 
         <div className="flex items-center gap-2">
           <Button

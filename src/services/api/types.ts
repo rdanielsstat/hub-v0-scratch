@@ -71,3 +71,148 @@ export interface RegisterInput {
   password: string
   displayName?: string
 }
+
+export type AreaLayout = 'stack' | 'grid'
+export type FieldType =
+  | 'text'
+  | 'longText'
+  | 'number'
+  | 'currency'
+  | 'date'
+  | 'datetime'
+  | 'duration'
+  | 'checkbox'
+  | 'choice'
+  | 'multiChoice'
+  | 'link'
+  | 'reference'
+  | 'image'
+
+export interface FieldDef {
+  id: string
+  name: string
+  type: FieldType
+  required?: boolean
+  unit?: string
+  options?: string[]
+  order: number
+}
+
+export interface CollectionSchema {
+  id: string
+  areaId: string
+  name: string
+  description: string
+  fields: FieldDef[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Area {
+  id: string
+  name: string
+  description: string
+  layout: AreaLayout
+  collectionIds: string[]
+  blockIds: string[]
+  itemCount: number
+  glance: string
+  lastActiveAt: string
+  icon: string
+  coverTone: string
+}
+
+export type ItemValue =
+  | string
+  | number
+  | boolean
+  | null
+  | string[]
+  | { itemId: string; title: string; areaId: string }
+
+export interface Item {
+  id: string
+  areaId: string
+  collectionId: string
+  title: string
+  type: string
+  occurredAt?: string
+  data: Record<string, ItemValue>
+  parentItemId?: string
+  source?: string
+  externalId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type ViewDisplay =
+  'stat' | 'chart' | 'table' | 'gallery' | 'cards' | 'list' | 'timeline'
+
+export type ViewPeriod = 'thisMonth' | 'last30Days' | '12Months' | 'allTime'
+export type AggregateOperation =
+  'sum' | 'average' | 'count' | 'min' | 'max' | 'latest'
+
+export interface ViewFilter {
+  fieldId: string
+  operator: 'equals' | 'contains' | 'greaterThan' | 'lessThan' | 'isSet'
+  value?: ItemValue
+}
+
+export interface ViewSpec {
+  id: string
+  title: string
+  collectionId: string
+  display: ViewDisplay
+  filter: ViewFilter[]
+  period?: ViewPeriod
+  groupBy?: string
+  aggregate?: { operation: AggregateOperation; fieldId?: string }
+  sort?: { fieldId: string; direction: 'asc' | 'desc' }
+  limit?: number
+  columns?: string[]
+  size?: 'small' | 'medium' | 'wide' | 'tall'
+  chartType?: 'line' | 'bar' | 'donut'
+}
+
+interface BlockBase {
+  id: string
+  areaId: string
+  title?: string
+  order: number
+  size?: 'small' | 'medium' | 'wide' | 'tall'
+}
+
+export type Block =
+  | (BlockBase & { type: 'text'; body: string })
+  | (BlockBase & { type: 'collection'; collectionId: string })
+  | (BlockBase & { type: 'view'; view: ViewSpec })
+  | (BlockBase & { type: 'image'; imageUrl: string; caption?: string })
+  | (BlockBase & { type: 'list'; items: string[] })
+  | (BlockBase & { type: 'linkedItems'; itemIds: string[] })
+
+export interface ItemLink {
+  id: string
+  fromItemId: string
+  toItemId: string
+  relationship: string
+  createdAt: string
+}
+
+export interface DataSource {
+  id: string
+  collectionId: string
+  name: string
+  provider: string
+  kind: 'file' | 'service' | 'manual'
+  status: 'connected' | 'syncing' | 'error' | 'manual'
+  lastSyncedAt?: string
+  nextSyncAt?: string
+  errorMessage?: string
+}
+
+export type AreaStartFrom = 'blank' | 'dashboard' | 'collection' | 'journal'
+export interface CreateAreaInput {
+  name: string
+  description?: string
+  startFrom: AreaStartFrom
+}

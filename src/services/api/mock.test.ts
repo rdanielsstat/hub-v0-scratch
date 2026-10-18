@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { mockAuthApi as MockAuthApi } from './mock-auth'
-import type { mockNotesApi as MockNotesApi, mockProjectsApi as MockProjectsApi } from './mock'
+import type {
+  mockNotesApi as MockNotesApi,
+  mockProjectsApi as MockProjectsApi,
+} from './mock'
 
 let authApi: typeof MockAuthApi
 let notesApi: typeof MockNotesApi
@@ -23,12 +26,13 @@ describe('in-memory demo APIs', () => {
       id: 'demo-user',
       email: 'demo@hub.local',
     })
-    await expect(projectsApi.listProjects()).resolves.toHaveLength(3)
+    await expect(projectsApi.listProjects()).resolves.toHaveLength(12)
   })
 
   it('keeps project and note changes in memory', async () => {
     const created = await projectsApi.createProject({ name: 'Demo addition' })
     expect(await projectsApi.getProject(created.id)).toEqual(created)
+    await new Promise((resolve) => setTimeout(resolve, 2))
 
     const { note, project } = await notesApi.addNote(
       created.id,
@@ -51,9 +55,13 @@ describe('in-memory demo APIs', () => {
 
   it('supports signing out and back in without a network request', async () => {
     await authApi.logout()
-    await expect(authApi.getCurrentUser()).rejects.toMatchObject({ status: 401 })
+    await expect(authApi.getCurrentUser()).rejects.toMatchObject({
+      status: 401,
+    })
 
-    await expect(authApi.login('preview@example.com', 'anything')).resolves.toMatchObject({
+    await expect(
+      authApi.login('preview@example.com', 'anything'),
+    ).resolves.toMatchObject({
       email: 'preview@example.com',
     })
   })

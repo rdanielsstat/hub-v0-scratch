@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Loader2, WifiOff } from 'lucide-react'
 import { useAuth } from '@/use-auth'
@@ -14,6 +14,26 @@ import { ProjectDetailPage } from '@/pages/project-detail'
 import { NotFoundPage } from '@/pages/not-found'
 import { LoginPage } from '@/pages/login'
 import { SignupPage } from '@/pages/signup'
+const AreasDashboardPage = lazy(() =>
+  import('@/pages/areas-dashboard').then((module) => ({
+    default: module.AreasDashboardPage,
+  })),
+)
+const HomeBudgetPage = lazy(() =>
+  import('@/pages/home-budget').then((module) => ({
+    default: module.HomeBudgetPage,
+  })),
+)
+const InventoryCollectionPage = lazy(() =>
+  import('@/pages/inventory-collection').then((module) => ({
+    default: module.InventoryCollectionPage,
+  })),
+)
+const AreaLandingPage = lazy(() =>
+  import('@/pages/area-landing').then((module) => ({
+    default: module.AreaLandingPage,
+  })),
+)
 
 export function App() {
   const { status, retry } = useAuth()
@@ -68,16 +88,32 @@ function AuthenticatedApp() {
     <div className="min-h-dvh bg-background">
       <AppHeader onCapture={() => setCaptureOpen(true)} />
       <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6">
-        <Routes>
-          <Route
-            path="/"
-            element={<DashboardPage onCapture={() => setCaptureOpen(true)} />}
-          />
-          <Route path="/project/:id" element={<ProjectDetailPage />} />
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="/signup" element={<Navigate to="/" replace />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <Suspense
+          fallback={
+            <div className="grid min-h-56 place-items-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              <span className="sr-only">Loading area</span>
+            </div>
+          }
+        >
+          <Routes>
+            <Route
+              path="/"
+              element={<DashboardPage onCapture={() => setCaptureOpen(true)} />}
+            />
+            <Route path="/areas" element={<AreasDashboardPage />} />
+            <Route path="/area/home-budget" element={<HomeBudgetPage />} />
+            <Route
+              path="/area/:areaId/collection/:collectionId"
+              element={<InventoryCollectionPage />}
+            />
+            <Route path="/area/:areaId" element={<AreaLandingPage />} />
+            <Route path="/project/:id" element={<ProjectDetailPage />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/signup" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
       </main>
       <QuickCaptureDialog
         open={captureOpen}
