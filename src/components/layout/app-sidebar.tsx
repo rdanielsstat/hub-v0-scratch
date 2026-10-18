@@ -769,7 +769,7 @@ function AreaNav({
     <div
       ref={sortable.setNodeRef}
       style={style}
-      className="group relative flex min-w-0 items-center gap-1"
+      className="group relative flex min-w-0 items-start gap-1"
     >
       <button
         type="button"
@@ -783,10 +783,12 @@ function AreaNav({
       <Link
         to={`/area/${area.id}`}
         onClick={onClick}
-        className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        className="flex min-w-0 flex-1 items-start gap-2 rounded-md px-1 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
       >
-        <AreaIcon name={area.icon} className="size-3.5 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">{area.name}</span>
+        <AreaIcon name={area.icon} className="mt-0.5 size-3.5 shrink-0" />
+        <span className="line-clamp-2 min-w-0 flex-1 whitespace-normal break-words leading-4">
+          {area.name}
+        </span>
       </Link>
       <div ref={menuRef} className="relative shrink-0">
         <button

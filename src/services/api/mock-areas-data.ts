@@ -13,6 +13,14 @@ const stamp = (daysAgo = 0) => {
   return date.toISOString()
 }
 
+const localDateAfter = (days: number) => {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+    .map((part, index) => String(part).padStart(index === 0 ? 4 : 2, '0'))
+    .join('-')
+}
+
 export const mockAreas: Area[] = [
   {
     id: 'personal-inventory',
@@ -22,7 +30,13 @@ export const mockAreas: Area[] = [
     pageIds: ['page-inventory'],
     accent: 'chart-3',
     order: 0,
-    blockIds: ['inventory-gallery'],
+    blockIds: [
+      'inventory-value',
+      'inventory-count',
+      'inventory-warranties',
+      'inventory-location',
+      'inventory-recent',
+    ],
     itemCount: 25,
     glance: '25 items, 3 warranties ending soon',
     lastActiveAt: stamp(1),
@@ -463,24 +477,15 @@ const financeItems: Item[] = [
   })),
 ]
 
-const categories = [
-  'Groceries',
-  'Home',
-  'Dining',
-  'Transport',
-  'Health',
-  'Utilities',
-  'Personal',
-]
-const merchants = [
-  'Market Basket',
-  'Corner Table',
-  'Northline Books',
-  'City Transit',
-  'Willow Pharmacy',
-  'Field Supply',
-  'Studio Goods',
-  'Bright Electric',
+const purchaseSeeds = [
+  { category: 'Groceries', merchant: 'Market Basket' },
+  { category: 'Dining', merchant: 'Corner Table' },
+  { category: 'Transport', merchant: 'City Transit' },
+  { category: 'Personal', merchant: 'Northline Books' },
+  { category: 'Utilities', merchant: 'Bright Electric' },
+  { category: 'Personal', merchant: 'Field Supply' },
+  { category: 'Health', merchant: 'Willow Pharmacy' },
+  { category: 'Home', merchant: 'Studio Goods' },
 ]
 
 export const mockItems: Item[] = [
@@ -490,7 +495,7 @@ export const mockItems: Item[] = [
   ...Array.from({ length: 2000 }, (_, index): Item => {
     const daysAgo = index % 365
     const date = stamp(daysAgo)
-    const category = categories[index % categories.length]
+    const purchaseSeed = purchaseSeeds[index % purchaseSeeds.length]
     const amount =
       Math.round((18 + ((index * 37) % 280) + (index % 4) * 0.75) * 100) / 100
     return {
@@ -510,7 +515,7 @@ export const mockItems: Item[] = [
       type: 'purchase',
       occurredAt: date,
       data: {
-        merchant: merchants[index % merchants.length],
+        merchant: purchaseSeed.merchant,
         description: [
           'Weekly pantry restock',
           'Lunch with a friend',
@@ -521,7 +526,7 @@ export const mockItems: Item[] = [
           'Pharmacy essentials',
           'Hardware for the studio',
         ][index % 8],
-        category,
+        category: purchaseSeed.category,
         amount,
         date: date.slice(0, 10),
         payment: ['Card', 'Checking', 'Cash'][index % 3],
@@ -836,20 +841,90 @@ export const mockBlocks: Block[] = [
     },
   },
   {
-    id: 'inventory-gallery',
+    id: 'inventory-value',
     areaId: 'personal-inventory',
     type: 'view',
     order: 0,
+    size: 'small',
+    view: {
+      id: 'inventory-value-view',
+      title: 'Total value',
+      collectionId: 'inventory',
+      display: 'stat',
+      filter: [],
+      period: 'allTime',
+      aggregate: { operation: 'sum', fieldId: 'amount' },
+    },
+  },
+  {
+    id: 'inventory-count',
+    areaId: 'personal-inventory',
+    type: 'view',
+    order: 1,
+    size: 'small',
+    view: {
+      id: 'inventory-count-view',
+      title: 'Items tracked',
+      collectionId: 'inventory',
+      display: 'stat',
+      filter: [],
+      period: 'allTime',
+      aggregate: { operation: 'count' },
+    },
+  },
+  {
+    id: 'inventory-warranties',
+    areaId: 'personal-inventory',
+    type: 'view',
+    order: 2,
     size: 'wide',
     view: {
-      id: 'inventory-gallery-view',
-      title: 'Personal Inventory',
+      id: 'inventory-warranty-view',
+      title: 'Warranties ending soon',
       collectionId: 'inventory',
-      display: 'gallery',
+      display: 'table',
+      filter: [
+        { fieldId: 'warrantyEnds', operator: 'greaterThan', value: localDateAfter(0) },
+        { fieldId: 'warrantyEnds', operator: 'lessThan', value: localDateAfter(90) },
+      ],
+      sort: { fieldId: 'warrantyEnds', direction: 'asc' },
+      limit: 8,
+      columns: ['make', 'model', 'warrantyEnds'],
+    },
+  },
+  {
+    id: 'inventory-location',
+    areaId: 'personal-inventory',
+    type: 'view',
+    order: 3,
+    size: 'medium',
+    view: {
+      id: 'inventory-location-view',
+      title: 'Items by location',
+      collectionId: 'inventory',
+      display: 'bar',
       filter: [],
-      limit: 48,
-      columns: ['photo', 'make', 'model', 'amount', 'location'],
-      size: 'wide',
+      period: 'allTime',
+      groupBy: 'location',
+      aggregate: { operation: 'count' },
+    },
+  },
+  {
+    id: 'inventory-recent',
+    areaId: 'personal-inventory',
+    type: 'view',
+    order: 4,
+    size: 'medium',
+    view: {
+      id: 'inventory-recent-view',
+      title: 'Recently added',
+      collectionId: 'inventory',
+      display: 'list',
+      filter: [],
+      period: 'allTime',
+      sort: { fieldId: 'createdAt', direction: 'desc' },
+      limit: 5,
+      columns: ['make', 'model', 'location'],
     },
   },
   {

@@ -279,7 +279,7 @@ export function AreasDashboardPage() {
                     .value as AreasListPreferences['density'],
                 })
               }
-              className="h-8 w-36"
+              className="h-8 w-44"
             >
               <option value="compact">Compact list</option>
               <option value="comfortable">Comfortable list</option>
@@ -314,7 +314,7 @@ export function AreasDashboardPage() {
                     .value as AreasListPreferences['groupBy'],
                 })
               }
-              className="h-8 w-44"
+              className="h-8 min-w-44"
             >
               <option value="none">No grouping</option>
               <option value="sidebar">My sidebar groups</option>

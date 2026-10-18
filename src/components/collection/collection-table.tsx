@@ -19,6 +19,8 @@ export interface CollectionTableProps {
   onSelect: (itemId: string, selected: boolean) => void
   onSelectAll: (selected: boolean) => void
   onSave: (item: Item, field: FieldDef | null, value: string) => Promise<void>
+  selectedEntryId: string
+  onOpen: (item: Item) => void
   onDelete: (itemId: string) => void
 }
 
@@ -75,6 +77,7 @@ function CellEditor({
         aria-label={ariaLabel}
         autoFocus
         value={draft}
+        onClick={(event) => event.stopPropagation()}
         onChange={(event) => onCommit(event.target.value)}
         className="h-8 min-w-24"
       >
@@ -165,7 +168,8 @@ function EditableCell({
       type="button"
       aria-label={`${field?.name ?? 'Name'} ${item.title}, edit`}
       className="block w-full whitespace-normal break-words rounded px-1 py-1 text-left text-sm hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      onClick={() => {
+      onClick={(event) => {
+        event.stopPropagation()
         committed.current = false
         setEditing(true)
       }}
@@ -271,6 +275,8 @@ export function CollectionTable({
   onSelect,
   onSelectAll,
   onSave,
+  selectedEntryId,
+  onOpen,
   onDelete,
 }: CollectionTableProps) {
   const allSelected =
@@ -285,25 +291,43 @@ export function CollectionTable({
     })),
     { id: '__delete', width: 44 },
   ]
-  const [expandedIds, setExpandedIds] = useState<string[]>([])
+  const [expandedFieldIds, setExpandedFieldIds] = useState<string[]>([])
+  const [expandedParentIds, setExpandedParentIds] = useState<string[]>([])
+  const childrenByParent = new Map<string, Item[]>()
+  for (const item of items) {
+    if (item.parentItemId)
+      childrenByParent.set(item.parentItemId, [
+        ...(childrenByParent.get(item.parentItemId) ?? []),
+        item,
+      ])
+  }
+  const visibleRows = items.flatMap((item) => {
+    if (item.parentItemId) return []
+    return [
+      item,
+      ...(expandedParentIds.includes(item.id)
+        ? (childrenByParent.get(item.id) ?? [])
+        : []),
+    ]
+  })
   const tableScrollRef = useRef<HTMLDivElement>(null)
   const cardScrollRef = useRef<HTMLDivElement>(null)
   const tableVirtualizer = useVirtualizer({
-    count: items.length,
+    count: visibleRows.length,
     getScrollElement: () => tableScrollRef.current,
-    estimateSize: () => 72,
-    getItemKey: (index) => items[index].id,
+    estimateSize: () => 44,
+    getItemKey: (index) => visibleRows[index].id,
     overscan: 12,
   })
   const cardVirtualizer = useVirtualizer({
-    count: items.length,
+    count: visibleRows.length,
     getScrollElement: () => cardScrollRef.current,
     estimateSize: (index) => {
-      const item = items[index]
-      const expanded = item ? expandedIds.includes(item.id) : false
+      const item = visibleRows[index]
+      const expanded = item ? expandedFieldIds.includes(item.id) : false
       return expanded ? 192 + Math.max(0, fields.length - 4) * 32 : 192
     },
-    getItemKey: (index) => items[index].id,
+    getItemKey: (index) => visibleRows[index].id,
     overscan: 4,
   })
   const tableRows = tableVirtualizer.getVirtualItems()
@@ -317,7 +341,7 @@ export function CollectionTable({
         className="hidden max-h-[65vh] overflow-auto rounded-lg border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:block"
       >
         <table
-          aria-rowcount={items.length + 1}
+          aria-rowcount={visibleRows.length + 1}
           className="w-full table-fixed text-left text-sm"
         >
           <colgroup>
@@ -327,7 +351,7 @@ export function CollectionTable({
           </colgroup>
           <thead className="sticky top-0 z-10 bg-muted/90 text-xs text-muted-foreground">
             <tr>
-              <th scope="col" className="px-2 py-2">
+              <th scope="col" aria-label="Select items" className="px-2 py-2">
                 <input
                   type="checkbox"
                   aria-label="Select all items"
@@ -416,14 +440,17 @@ export function CollectionTable({
               </tr>
             ) : null}
             {tableRows.map((virtualRow) => {
-              const item = items[virtualRow.index]
+              const item = visibleRows[virtualRow.index]
+              const hasChildren = Boolean(childrenByParent.get(item.id)?.length)
+              const expanded = expandedParentIds.includes(item.id)
               return (
                 <tr
                   key={item.id}
                   data-index={virtualRow.index}
-                  className="border-t border-border/70"
+                  className={`cursor-pointer border-t border-border/70 ${selectedEntryId === item.id ? 'bg-muted/60' : ''}`}
+                  onClick={() => onOpen(item)}
                 >
-                  <td className="px-2 py-1 text-center">
+                  <td className="px-2 py-1 text-center" onClick={(event) => event.stopPropagation()}>
                     <input
                       type="checkbox"
                       aria-label={`Select ${item.title}`}
@@ -434,7 +461,41 @@ export function CollectionTable({
                     />
                   </td>
                   <td className="px-2 py-1">
-                    <EditableCell item={item} field={null} onSave={onSave} />
+                    <div className={`flex min-w-0 items-center gap-1 ${item.parentItemId ? 'pl-5' : ''}`}>
+                      {hasChildren ? (
+                        <button
+                          type="button"
+                          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${item.title} sub-items`}
+                          aria-expanded={expanded}
+                          className="grid size-6 shrink-0 place-items-center rounded hover:bg-muted"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setExpandedParentIds((current) =>
+                              expanded
+                                ? current.filter((id) => id !== item.id)
+                                : [...current, item.id],
+                            )
+                          }}
+                        >
+                          <ChevronDown className={expanded ? '' : '-rotate-90'} />
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label={`Open ${item.title}`}
+                        className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left text-sm hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onOpen(item)
+                        }}
+                      >
+                        <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                          {item.title.slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className="min-w-0 break-words">{item.title}</span>
+                        {item.parentItemId ? <span className="shrink-0 text-xs text-muted-foreground">{String(item.data.status ?? 'To do')}</span> : null}
+                      </button>
+                    </div>
                   </td>
                   {fields.map((field) => (
                     <td key={field.id} className="px-2 py-1">
@@ -446,7 +507,10 @@ export function CollectionTable({
                       variant="ghost"
                       size="icon-sm"
                       aria-label={`Delete ${item.title}`}
-                      onClick={() => onDelete(item.id)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onDelete(item.id)
+                      }}
                     >
                       <Trash2 />
                     </Button>
@@ -484,17 +548,31 @@ export function CollectionTable({
           }}
         >
           {cardRows.map((virtualRow) => {
-            const item = items[virtualRow.index]
-            const expanded = expandedIds.includes(item.id)
+            const item = visibleRows[virtualRow.index]
+            const hasChildren = Boolean(childrenByParent.get(item.id)?.length)
+            const expanded = expandedFieldIds.includes(item.id)
+            const expandedChildren = expandedParentIds.includes(item.id)
             const visibleFields = expanded ? fields : fields.slice(0, 4)
             return (
               <article
                 key={item.id}
                 data-index={virtualRow.index}
-                className="absolute left-0 top-0 min-w-0 w-full rounded-xl border border-border bg-card p-3"
+                className={`absolute left-0 top-0 min-w-0 w-full cursor-pointer rounded-xl border border-border bg-card p-3 ${selectedEntryId === item.id ? 'ring-2 ring-ring' : ''}`}
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
+                onClick={() => onOpen(item)}
               >
-                <div className="mb-2 flex min-w-0 items-start gap-2">
+                <div className="mb-2 flex min-w-0 items-start gap-2" onClick={(event) => event.stopPropagation()}>
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      aria-label={`${expandedChildren ? 'Collapse' : 'Expand'} ${item.title} sub-items`}
+                      aria-expanded={expandedChildren}
+                      className="grid size-6 shrink-0 place-items-center rounded hover:bg-muted"
+                      onClick={() => setExpandedParentIds((current) => expandedChildren ? current.filter((id) => id !== item.id) : [...current, item.id])}
+                    >
+                      <ChevronDown className={expandedChildren ? '' : '-rotate-90'} />
+                    </button>
+                  ) : null}
                   <input
                     type="checkbox"
                     aria-label={`Select ${item.title}`}
@@ -504,13 +582,27 @@ export function CollectionTable({
                     }
                   />
                   <div className="min-w-0 flex-1">
-                    <EditableCell item={item} field={null} onSave={onSave} />
+                    <button
+                      type="button"
+                      aria-label={`Open ${item.title}`}
+                      className={`flex min-w-0 items-center gap-2 rounded px-1 py-1 text-left text-sm font-medium ${item.parentItemId ? 'pl-5' : ''}`}
+                      onClick={() => onOpen(item)}
+                    >
+                      <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] text-muted-foreground">
+                        {item.title.slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 break-words">{item.title}</span>
+                      {item.parentItemId ? <span className="shrink-0 text-xs text-muted-foreground">{String(item.data.status ?? 'To do')}</span> : null}
+                    </button>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Delete ${item.title}`}
-                    onClick={() => onDelete(item.id)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onDelete(item.id)
+                    }}
                   >
                     <Trash2 />
                   </Button>
@@ -523,7 +615,7 @@ export function CollectionTable({
                     <span className="break-words text-xs text-muted-foreground">
                       {field.name}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0" onClick={(event) => event.stopPropagation()}>
                       <EditableCell item={item} field={field} onSave={onSave} />
                     </div>
                   </div>
@@ -534,7 +626,7 @@ export function CollectionTable({
                     aria-expanded={expanded}
                     className="mt-2 text-xs font-medium text-primary"
                     onClick={() =>
-                      setExpandedIds((current) =>
+                      setExpandedFieldIds((current) =>
                         expanded
                           ? current.filter((id) => id !== item.id)
                           : [...current, item.id],

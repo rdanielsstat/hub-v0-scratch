@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -27,7 +27,20 @@ describe('AreaPage', () => {
     expect(screen.getByText('Recent purchases')).toBeInTheDocument()
   })
 
-  it('uses the same generic page for an area with a gallery view', async () => {
+  it('starts a newly added page empty instead of copying overview blocks', async () => {
+    const user = userEvent.setup()
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue('Notes')
+    renderArea('/area/home-budget')
+    await user.click(await screen.findByRole('button', { name: 'Customize' }))
+    await user.click(screen.getByRole('button', { name: 'Edit layout' }))
+    await user.click(screen.getByRole('button', { name: 'Add page' }))
+    expect(await screen.findByText('This page is empty')).toBeInTheDocument()
+    expect(screen.queryByText('Spent this month')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add a block' })).toBeInTheDocument()
+    prompt.mockRestore()
+  })
+
+  it('shows a photo-free Inventory summary on its overview page', async () => {
     renderArea('/area/personal-inventory')
     expect(
       await screen.findByRole('heading', {
@@ -35,13 +48,19 @@ describe('AreaPage', () => {
         name: 'Personal Inventory',
       }),
     ).toBeInTheDocument()
-    expect(await screen.findAllByText('Rangefinder camera')).toHaveLength(1)
+    expect(await screen.findByText('Total value')).toBeInTheDocument()
+    expect(screen.getByText('Items tracked')).toBeInTheDocument()
+    expect(screen.getByText('Warranties ending soon')).toBeInTheDocument()
+    expect(screen.getByText('Items by location')).toBeInTheDocument()
+    expect(screen.getByText('Recently added')).toBeInTheDocument()
+    expect(document.querySelectorAll('img')).toHaveLength(0)
   })
 
   it('opens the friendly block picker and supports slash in a text block', async () => {
     const user = userEvent.setup()
     renderArea('/area/spirituality-code')
     await user.click(await screen.findByRole('button', { name: 'Customize' }))
+    await user.click(screen.getByRole('button', { name: 'Edit layout' }))
     await user.click(
       screen.getByRole('textbox', { name: 'Text in A personal creed' }),
     )
@@ -56,8 +75,9 @@ describe('AreaPage', () => {
     const user = userEvent.setup()
     renderArea('/area/personal-inventory')
     await user.click(await screen.findByRole('button', { name: 'Customize' }))
+    await user.click(screen.getByRole('button', { name: 'Edit layout' }))
     await user.click(
-      screen.getByRole('button', { name: 'Personal Inventory block menu' }),
+      screen.getByRole('button', { name: 'Total value block menu' }),
     )
     expect(
       screen.getByRole('button', { name: 'Duplicate' }),
@@ -78,15 +98,17 @@ describe('AreaPage', () => {
       screen.getByRole('option', { name: 'Line chart' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('option', { name: 'This month' }),
-    ).toBeInTheDocument()
+      screen.getAllByRole('option', { name: 'This month' }).length,
+    ).toBeGreaterThan(0)
     expect(
-      screen.getByRole('option', { name: 'Last 30 days' }),
-    ).toBeInTheDocument()
+      screen.getAllByRole('option', { name: 'Last 30 days' }).length,
+    ).toBeGreaterThan(0)
     expect(
-      screen.getByRole('option', { name: '12 months' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'All time' })).toBeInTheDocument()
+      screen.getAllByRole('option', { name: '12 months' }).length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.getAllByRole('option', { name: 'All time' }).length,
+    ).toBeGreaterThan(0)
     for (const label of [
       'Sum',
       'Average',
@@ -110,7 +132,7 @@ describe('AreaPage', () => {
     await waitFor(() =>
       expect(document.activeElement).toHaveAttribute(
         'id',
-        'block-inventory-gallery',
+        'block-inventory-value',
       ),
     )
   })

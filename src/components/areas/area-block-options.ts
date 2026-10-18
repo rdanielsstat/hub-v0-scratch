@@ -1,0 +1,40 @@
+import {
+  Activity,
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  CheckSquare2,
+  Columns3,
+  FileText,
+  GalleryHorizontal,
+  Heading,
+  Image,
+  LayoutGrid,
+  Link2,
+  List,
+  Rows3,
+  Sparkles,
+  Table2,
+} from 'lucide-react'
+
+export const blockOptions = [
+  { key: 'text', label: 'Text', description: 'Add a thought, note, or longer passage.', icon: FileText },
+  { key: 'heading', label: 'Heading', description: 'Give a section a clear point of focus.', icon: Heading },
+  { key: 'list', label: 'List', description: 'Keep a few related ideas together.', icon: List },
+  { key: 'checklist', label: 'Checklist', description: 'Track steps as you complete them.', icon: CheckSquare2 },
+  { key: 'image', label: 'Image', description: 'Keep a visual reference close by.', icon: Image },
+  { key: 'divider', label: 'Divider', description: 'Add a little breathing room.', icon: Rows3 },
+  { key: 'callout', label: 'Callout', description: 'Set an important note apart.', icon: Sparkles },
+  { key: 'chart', label: 'Chart', description: 'Notice changes and patterns over time.', icon: BarChart3 },
+  { key: 'number', label: 'Number', description: 'Keep one useful measure in view.', icon: Activity },
+  { key: 'table', label: 'Table', description: 'See structured entries at a glance.', icon: Table2 },
+  { key: 'gallery', label: 'Gallery', description: 'Browse entries as a visual collection.', icon: GalleryHorizontal },
+  { key: 'cards', label: 'Cards', description: 'Give each entry a little more room.', icon: LayoutGrid },
+  { key: 'timeline', label: 'Timeline', description: 'See events in their order.', icon: Rows3 },
+  { key: 'board', label: 'Board', description: 'Group work into flexible columns.', icon: Columns3 },
+  { key: 'calendar', label: 'Calendar', description: 'Place entries on their dates.', icon: CalendarDays },
+  { key: 'linkedItems', label: 'Linked items', description: 'Connect related entries from a collection.', icon: Link2 },
+  { key: 'embeddedPage', label: 'Embedded page', description: 'Bring another area page into this space.', icon: BookOpen },
+] as const
+
+export type AreaBlockType = (typeof blockOptions)[number]['key']

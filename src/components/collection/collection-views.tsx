@@ -20,10 +20,12 @@ export function EntryView({
   mode,
   items,
   fields,
+  onOpen,
 }: {
   mode: Exclude<DisplayMode, 'table'>
   items: Item[]
   fields: FieldDef[]
+  onOpen: (item: Item) => void
 }) {
   const imageField = fields.find((field) => field.type === 'image')
   if (mode === 'gallery') {
@@ -38,9 +40,12 @@ export function EntryView({
               : null
           if (imageUrl) displayedImages.add(imageUrl)
           return (
-            <article
+            <button
+              type="button"
               key={item.id}
-              className="overflow-hidden rounded-xl border border-border"
+              aria-label={`Open ${item.title}`}
+              onClick={() => onOpen(item)}
+              className="overflow-hidden rounded-xl border border-border text-left hover:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <div className="grid aspect-[4/3] place-items-center bg-muted">
                 {imageUrl ? (
@@ -59,10 +64,10 @@ export function EntryView({
                   </div>
                 )}
               </div>
-              <h2 className="break-words p-3 text-sm font-medium">
+              <span className="block break-words p-3 text-sm font-medium">
                 {item.title}
-              </h2>
-            </article>
+              </span>
+            </button>
           )
         })}
       </div>
@@ -82,19 +87,23 @@ export function EntryView({
             ? formatFieldValue(item.data[dateField.id], dateField)
             : formatLocalDate(rawDate, rawDate.includes('T'))
           return (
-            <li
-              key={item.id}
-              className="flex gap-3 rounded-lg border border-border p-3"
-            >
-              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
-              <div className="min-w-0">
+            <li key={item.id}>
+              <button
+                type="button"
+                aria-label={`Open ${item.title}`}
+                onClick={() => onOpen(item)}
+                className="flex w-full gap-3 rounded-lg border border-border p-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
+                <div className="min-w-0">
                 <h2 className="break-words text-sm font-medium">
                   {item.title}
                 </h2>
                 <time className="text-xs text-muted-foreground">
                   {dateLabel}
                 </time>
-              </div>
+                </div>
+              </button>
             </li>
           )
         })}
@@ -104,8 +113,14 @@ export function EntryView({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
-        <article key={item.id} className="rounded-xl border border-border p-4">
-          <h2 className="mb-2 break-words text-sm font-medium">{item.title}</h2>
+        <button
+          type="button"
+          key={item.id}
+          aria-label={`Open ${item.title}`}
+          onClick={() => onOpen(item)}
+          className="rounded-xl border border-border p-4 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="mb-2 block break-words text-sm font-medium">{item.title}</span>
           {fields.slice(0, 5).map((field) => (
             <p
               key={field.id}
@@ -119,7 +134,7 @@ export function EntryView({
               </span>
             </p>
           ))}
-        </article>
+        </button>
       ))}
     </div>
   )

@@ -20,16 +20,11 @@ export function normalizeLocalDate(value: Date): Date {
 export function formatLocalDate(value: string, includeTime = false): string {
   const date = parseLocalDate(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString(
-    undefined,
-    includeTime
-      ? {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-        }
-      : { month: 'short', day: 'numeric', year: 'numeric' },
-  )
+  const sameYear = date.getFullYear() === new Date().getFullYear()
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+    ...(includeTime ? { hour: 'numeric', minute: '2-digit' } : {}),
+  })
 }

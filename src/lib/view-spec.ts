@@ -51,6 +51,15 @@ export function applyViewSpec(spec: ViewSpec, items: Item[], now = new Date()) {
       const right = String(filter.value ?? '').toLowerCase()
       if (filter.operator === 'equals') return left === right
       if (filter.operator === 'contains') return left.includes(right)
+      if (
+        typeof value === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        typeof filter.value === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(filter.value)
+      )
+        return filter.operator === 'greaterThan'
+          ? value > filter.value
+          : value < filter.value
       const leftNumber = Number(value)
       const rightNumber = Number(filter.value)
       if (filter.operator === 'greaterThan')
@@ -60,8 +69,14 @@ export function applyViewSpec(spec: ViewSpec, items: Item[], now = new Date()) {
   })
   if (spec.sort)
     selected = [...selected].sort((a, b) => {
-      const left = a.data[spec.sort!.fieldId] ?? a.title
-      const right = b.data[spec.sort!.fieldId] ?? b.title
+      const left =
+        spec.sort!.fieldId === 'createdAt'
+          ? a.createdAt
+          : (a.data[spec.sort!.fieldId] ?? a.title)
+      const right =
+        spec.sort!.fieldId === 'createdAt'
+          ? b.createdAt
+          : (b.data[spec.sort!.fieldId] ?? b.title)
       const result =
         typeof left === 'number' && typeof right === 'number'
           ? left - right

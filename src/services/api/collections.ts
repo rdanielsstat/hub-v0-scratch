@@ -43,7 +43,10 @@ export const collectionsApi = {
 
   async getPreferences(collectionId: string): Promise<CollectionPreferences> {
     return mockAreasRequest(
-      collectionPreferences.get(collectionId) ?? defaultPreferences,
+      collectionPreferences.get(collectionId) ??
+        (collectionId === 'inventory'
+          ? { display: 'gallery', columnWidths: {} }
+          : defaultPreferences),
       defaultPreferences,
     )
   },
@@ -129,6 +132,16 @@ export const collectionsApi = {
       updatedAt: new Date().toISOString(),
     }
     return cloneMockData(mockItems[index])
+  },
+
+  async restoreItems(items: Item[]): Promise<void> {
+    const existingIds = new Set(mockItems.map((item) => item.id))
+    const restored = items.filter((item) => !existingIds.has(item.id))
+    mockItems.unshift(...cloneMockData(restored))
+    for (const item of restored) {
+      const area = mockAreas.find((entry) => entry.id === item.areaId)
+      if (area) area.itemCount += 1
+    }
   },
 
   async deleteItems(ids: string[]): Promise<void> {

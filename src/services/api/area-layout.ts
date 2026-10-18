@@ -1,12 +1,21 @@
 import type {
   Area,
   AreaGroup,
+  AreaPageSettings,
   AreaPageSpec,
   AreaSection,
   AreasListPreferences,
 } from './types'
 import { mockAreas, mockBlocks, cloneMockData } from './mock-areas-data'
 import { mockAreasRequest } from './mock-areas-runtime'
+
+const defaultPageSettings: AreaPageSettings = {
+  layout: 'twoColumns',
+  width: 'comfortable',
+  density: 'comfortable',
+  blockStyle: 'cards',
+  showBlockTitles: true,
+}
 
 const sections: AreaSection[] = [
   {
@@ -16,7 +25,13 @@ const sections: AreaSection[] = [
     order: 0,
     layout: 'grid',
     columns: 2,
-    blockIds: ['inventory-gallery'],
+    blockIds: [
+      'inventory-value',
+      'inventory-count',
+      'inventory-warranties',
+      'inventory-location',
+      'inventory-recent',
+    ],
   },
   {
     id: 'section-budget',
@@ -69,30 +84,40 @@ const pages: AreaPageSpec[] = [
     name: 'Overview',
     order: 0,
     sectionIds: ['section-inventory'],
+    settings: { ...defaultPageSettings, layout: 'twoColumns' },
+    hiddenBlockIds: [],
   },
   {
     id: 'page-budget',
     name: 'Overview',
     order: 0,
     sectionIds: ['section-budget'],
+    settings: { ...defaultPageSettings, layout: 'threeColumns' },
+    hiddenBlockIds: [],
   },
   {
     id: 'page-health',
     name: 'Overview',
     order: 0,
     sectionIds: ['section-health'],
+    settings: { ...defaultPageSettings, layout: 'twoColumns' },
+    hiddenBlockIds: [],
   },
   {
     id: 'page-outdoors',
     name: 'Overview',
     order: 0,
     sectionIds: ['section-outdoors'],
+    settings: { ...defaultPageSettings, layout: 'oneColumn' },
+    hiddenBlockIds: [],
   },
   {
     id: 'page-spirituality',
     name: 'Overview',
     order: 0,
     sectionIds: ['section-spirituality'],
+    settings: { ...defaultPageSettings, layout: 'oneColumn' },
+    hiddenBlockIds: [],
   },
 ]
 
@@ -136,6 +161,8 @@ export const areaLayoutApi = {
       name,
       order: area.pageIds.length,
       sectionIds: [],
+      settings: { ...cloneMockData(defaultPageSettings), layout: 'oneColumn' },
+      hiddenBlockIds: [],
     }
     pages.push(page)
     area.pageIds.push(page.id)

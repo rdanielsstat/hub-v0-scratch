@@ -7,9 +7,10 @@ import type {
   Item,
   ItemValue,
 } from '@/services/api'
-import { areasApi, collectionsApi } from '@/services/api'
+import { areasApi, collectionsApi, entryDetailsApi } from '@/services/api'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { localDateString } from '@/lib/local-date'
+import { formatFieldValue } from '@/lib/field-format-utils'
 import { csvCell, parseCsv, parseValue, valueText } from './collection-utils'
 import type { DisplayMode } from './collection-views'
 
@@ -66,6 +67,7 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const importRef = useRef<HTMLInputElement>(null)
+  const deletedItemsRef = useRef<Item[]>([])
   const collection = resource.data?.collection
   const fields = collection?.fields ?? []
 
@@ -179,6 +181,17 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
       : { title: value }
     try {
       const updated = await collectionsApi.updateItem(item.id, patch)
+      if (field) {
+        await entryDetailsApi.recordChange(
+          item.id,
+          `Changed ${field.name} from ${formatFieldValue(item.data[field.id], field) || 'empty'} to ${formatFieldValue(parseValue(field, value), field) || value}`,
+        )
+      } else {
+        await entryDetailsApi.recordChange(
+          item.id,
+          `Renamed ${item.title} to ${value}`,
+        )
+      }
       resource.setData((previous) =>
         previous
           ? {
@@ -194,14 +207,17 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
     }
   }
 
-  async function removeItems(ids: string[]) {
+  async function removeItems(ids: string[]): Promise<boolean> {
     if (
       !ids.length ||
       !window.confirm(
         `Delete ${ids.length} ${ids.length === 1 ? 'item' : 'items'}? This cannot be undone.`,
       )
     )
-      return
+      return false
+    deletedItemsRef.current = (resource.data?.items ?? []).filter((item) =>
+      ids.includes(item.id),
+    )
     await collectionsApi.deleteItems(ids)
     resource.setData((previous) =>
       previous
@@ -212,6 +228,52 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
         : previous,
     )
     setSelectedIds([])
+    return true
+  }
+
+  async function undoRemoveItems() {
+    const restored = deletedItemsRef.current
+    if (!restored.length) return
+    deletedItemsRef.current = []
+    await collectionsApi.restoreItems(restored)
+    resource.setData((previous) =>
+      previous ? { ...previous, items: [...restored, ...previous.items] } : previous,
+    )
+  }
+
+  async function addSubItem(parent: Item, title: string, dueDate?: string) {
+    const child = await collectionsApi.createItem({
+      areaId: parent.areaId,
+      collectionId: parent.collectionId,
+      title,
+      type: parent.type,
+      data: { status: 'To do', ...(dueDate ? { dueDate } : {}) },
+      parentItemId: parent.id,
+    })
+    resource.setData((previous) =>
+      previous ? { ...previous, items: [...previous.items, child] } : previous,
+    )
+    return child.id
+  }
+
+  async function updateSubItem(id: string, completed: boolean) {
+    const current = resource.data?.items.find((item) => item.id === id)
+    if (!current) return
+    const updated = await collectionsApi.updateItem(id, {
+      data: {
+        ...current.data,
+        status: completed ? 'Done' : 'To do',
+        completed,
+      },
+    })
+    resource.setData((previous) =>
+      previous
+        ? {
+            ...previous,
+            items: previous.items.map((item) => item.id === id ? updated : item),
+          }
+        : previous,
+    )
   }
 
   function toggleSort(fieldId: string) {
@@ -318,7 +380,10 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
     updateColumnWidth,
     addItem,
     updateItem,
+    addSubItem,
+    updateSubItem,
     removeItems,
+    undoRemoveItems,
     toggleSort,
     importCsv,
     exportCsv,

@@ -26,6 +26,13 @@ export * from './types'
 export { areasApi, getMockAreasScenario, setMockAreasScenario } from './areas'
 export { collectionsApi } from './collections'
 export { entriesApi } from './entries'
+export { entryDetailsApi } from './entry-details'
+export type {
+  EntryActivity,
+  EntryDetail,
+  EntryFile,
+  EntrySubItem,
+} from './entry-details'
 export { blocksApi } from './blocks'
 export { itemLinksApi } from './item-links'
 export { savedFiltersApi } from './saved-filters'

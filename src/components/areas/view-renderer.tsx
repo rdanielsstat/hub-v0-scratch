@@ -1,6 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Image as ImageIcon } from 'lucide-react'
+import {
+  BarChart3,
+  ExternalLink,
+  Image as ImageIcon,
+  MoreHorizontal,
+  Table2,
+} from 'lucide-react'
 import type { ComponentType } from 'react'
 import type {
   FieldDef,
@@ -21,6 +27,9 @@ interface Props {
   items: Item[]
   fields: FieldDef[]
   onChangeSpec?: (spec: ViewSpec) => void
+  showTitle?: boolean
+  plain?: boolean
+  compact?: boolean
 }
 
 const RechartsView = lazy(() => import('@/components/areas/view-charts'))
@@ -30,7 +39,15 @@ const periodLabels: Record<ViewPeriod, string> = {
   '12Months': '12 months',
   allTime: 'All time',
 }
-export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
+export function ViewRenderer({
+  spec,
+  items,
+  fields,
+  onChangeSpec,
+  showTitle = true,
+  plain = false,
+  compact = false,
+}: Props) {
   const visibleItems = applyViewSpec(spec, items)
   const aggregate = aggregateView(spec, visibleItems)
   const groups = groupView(spec, visibleItems)
@@ -52,47 +69,85 @@ export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
     calendar: CalendarView,
   }
   const Renderer = renderers[effectiveDisplay]
-  const collection = items[0]
-  const areaId = collection?.areaId
+  const areaId = items[0]?.areaId
+  const chartDisplay: 'line' | 'bar' | 'donut' =
+    spec.display === 'table'
+      ? (spec.chartType ?? 'line')
+      : spec.display === 'bar' || spec.display === 'donut'
+        ? spec.display
+        : 'line'
+  const canToggleChart = ['line', 'bar', 'donut'].includes(chartDisplay)
+  const setDisplay = (display: ViewDisplay) =>
+    onChangeSpec?.({
+      ...spec,
+      chartType:
+        display === 'table' && canToggleChart ? chartDisplay : spec.chartType,
+      display,
+    })
 
   return (
-    <Card className="group relative h-full min-w-0 p-4">
-      <div className="mb-3 flex min-w-0 flex-col gap-2">
-        <h3 className="w-full min-w-0 whitespace-normal break-words text-sm font-medium leading-snug">
-          {spec.title}
-        </h3>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          {areaId ? (
-            <Link
-              to={`/area/${areaId}/collection/${spec.collectionId}`}
-              className="min-w-0 truncate rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              Open
-            </Link>
-          ) : (
-            <span />
-          )}
-          {spec.period && onChangeSpec ? (
-            <Select
-              aria-label={`${spec.title} period`}
-              value={spec.period}
-              onChange={(event) =>
-                onChangeSpec({
-                  ...spec,
-                  period: event.target.value as ViewPeriod,
-                })
-              }
-              className="h-8 w-36 shrink-0 border-0 bg-transparent pl-3 pr-8 text-xs text-muted-foreground focus-visible:ring-1"
-            >
-              {Object.entries(periodLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
+    <Card
+      className={`group relative h-full min-w-0 ${compact ? 'p-3' : 'p-4'} ${plain ? 'border-0 bg-transparent shadow-none' : ''}`}
+    >
+      <header className="mb-3 flex flex-col gap-2">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          {showTitle ? (
+            <h3 className="min-w-0 flex-1 break-words text-xs font-medium leading-snug text-muted-foreground">
+              {spec.title}
+            </h3>
           ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {canToggleChart && onChangeSpec ? (
+              <div role="group" aria-label={`${spec.title} display`} className="flex">
+                <button
+                  type="button"
+                  aria-label={`${spec.title} chart view`}
+                  aria-pressed={spec.display !== 'table'}
+                  onClick={() => setDisplay(chartDisplay)}
+                  className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted aria-pressed:bg-muted aria-pressed:text-foreground"
+                >
+                  <BarChart3 aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`${spec.title} table view`}
+                  aria-pressed={spec.display === 'table'}
+                  onClick={() => setDisplay('table')}
+                  className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted aria-pressed:bg-muted aria-pressed:text-foreground"
+                >
+                  <Table2 aria-hidden="true" />
+                </button>
+              </div>
+            ) : null}
+            {areaId ? (
+              <Link
+                to={`/area/${areaId}/collection/${spec.collectionId}`}
+                aria-label={`Open ${spec.title} collection`}
+                title="Open collection"
+                className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted"
+              >
+                <ExternalLink aria-hidden="true" />
+              </Link>
+            ) : null}
+            <details className="relative">
+              <summary
+                aria-label={`${spec.title} options`}
+                className="grid size-7 cursor-pointer list-none place-items-center rounded text-muted-foreground hover:bg-muted"
+              >
+                <MoreHorizontal aria-hidden="true" />
+              </summary>
+              {areaId ? (
+                <Link
+                  to={`/area/${areaId}/collection/${spec.collectionId}`}
+                  className="absolute right-0 top-8 z-20 whitespace-nowrap rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-lg"
+                >
+                  Open collection
+                </Link>
+              ) : null}
+            </details>
+          </div>
         </div>
-      </div>
+      </header>
       <Renderer
         spec={{ ...spec, display: effectiveDisplay }}
         items={items}
@@ -102,6 +157,22 @@ export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
         groups={groups}
         columns={columns}
       />
+      {spec.period && onChangeSpec ? (
+        <Select
+          aria-label={`${spec.title} period`}
+          value={spec.period}
+          onChange={(event) =>
+            onChangeSpec({ ...spec, period: event.target.value as ViewPeriod })
+          }
+          className="mt-2 h-7 w-fit min-w-0 border-0 bg-transparent pl-1 pr-7 text-xs text-muted-foreground focus-visible:ring-1"
+        >
+          {Object.entries(periodLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </Select>
+      ) : null}
     </Card>
   )
 }
@@ -115,8 +186,21 @@ type RenderProps = Props & {
 
 function StatView({ spec, aggregate, fields }: RenderProps) {
   const field = fields.find((item) => item.id === spec.aggregate?.fieldId)
+  const isIncoming = spec.collectionId === 'income'
+  const isOutgoing = spec.collectionId === 'purchases'
+  if (field?.type === 'currency' && typeof aggregate === 'number') {
+    const absolute = Math.abs(aggregate).toFixed(2).split('.')
+    return (
+      <p
+        className={`w-full text-right text-3xl font-semibold tracking-tight tabular-nums ${isIncoming ? 'text-emerald-700 dark:text-emerald-400' : ''}`}
+      >
+        {isOutgoing ? '−' : isIncoming ? '+' : ''}${absolute[0]}
+        <sup className="ml-0.5 align-super text-sm font-medium">.{absolute[1]}</sup>
+      </p>
+    )
+  }
   return (
-    <p className="text-3xl font-semibold tracking-tight tabular-nums">
+    <p className="w-full text-right text-3xl font-semibold tracking-tight tabular-nums">
       <FieldValue value={aggregate as ItemValue} field={field} />
     </p>
   )

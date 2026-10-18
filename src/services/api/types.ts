@@ -75,11 +75,21 @@ export interface RegisterInput {
 export type SectionLayout = 'stack' | 'grid'
 export type BlockSize = 'small' | 'medium' | 'wide' | 'tall' | 'full'
 
+export interface AreaPageSettings {
+  layout: 'oneColumn' | 'twoColumns' | 'threeColumns' | 'grid'
+  width: 'comfortable' | 'full'
+  density: 'comfortable' | 'compact'
+  blockStyle: 'cards' | 'plain'
+  showBlockTitles: boolean
+}
+
 export interface AreaPageSpec {
   id: string
   name: string
   order: number
   sectionIds: string[]
+  settings?: AreaPageSettings
+  hiddenBlockIds?: string[]
 }
 
 export interface AreaSection {

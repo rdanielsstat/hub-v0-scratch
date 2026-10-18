@@ -1,7 +1,9 @@
-import { Link, useParams } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   Archive,
   ArrowLeft,
+  ArrowUpDown,
   Download,
   Plus,
   Search,
@@ -22,6 +24,9 @@ import {
 } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { CollectionTable } from '@/components/collection/collection-table'
+import { EntryDetailPanel } from '@/components/collection/entry-detail-panel'
+import { useEntryDetails } from '@/hooks/use-entry-details'
+import type { FieldDef } from '@/services/api'
 import {
   EntryView,
   FieldInput,
@@ -33,6 +38,12 @@ import { useCollectionPageState } from '@/components/collection/collection-page-
 export function CollectionPage() {
   const { areaId = '', collectionId = '' } = useParams()
   const state = useCollectionPageState(areaId, collectionId)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [toastMessage, setToastMessage] = useState('')
+  const [undoAvailable, setUndoAvailable] = useState(false)
+  const entryId = searchParams.get('entry') ?? ''
+  const entryDetails = useEntryDetails(entryId)
+  const selectedEntry = state.resource.data?.items.find((item) => item.id === entryId)
   const {
     resource,
     collection,
@@ -65,12 +76,61 @@ export function CollectionPage() {
     updateColumnWidth,
     addItem,
     updateItem,
+    addSubItem,
+    updateSubItem,
     removeItems,
+    undoRemoveItems,
     toggleSort,
     importCsv,
     exportCsv,
     saveSchema,
   } = state
+  const searchRef = useRef<HTMLInputElement>(null)
+  const amountField = fields.find((field) => field.type === 'currency')
+  const dateField = fields.find((field) => field.type === 'date')
+  const amountTotal = amountField
+    ? filteredItems.reduce((sum, item) => {
+        const value = item.data[amountField.id]
+        return sum + (typeof value === 'number' ? value : 0)
+      }, 0)
+    : null
+  const amountAverage = amountTotal !== null && filteredItems.length
+    ? amountTotal / filteredItems.length
+    : 0
+  const currency = (value: number) =>
+    new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 2,
+    }).format(value)
+
+  function setEntryQuery(itemId?: string, fullPage = false, replace = false) {
+    const next = new URLSearchParams(searchParams)
+    if (itemId) next.set('entry', itemId)
+    else next.delete('entry')
+    if (fullPage) next.set('full', '1')
+    else next.delete('full')
+    setSearchParams(next, { replace })
+  }
+
+  async function saveEntryField(field: FieldDef, value: string) {
+    if (!selectedEntry) return
+    await updateItem(selectedEntry, field, value)
+    await entryDetails.refresh()
+    setToastMessage(`Saved ${field.name}`)
+  }
+
+  async function saveEntryTitle(title: string) {
+    if (!selectedEntry) return
+    await updateItem(selectedEntry, null, title)
+    await entryDetails.refresh()
+    setToastMessage('Entry renamed')
+  }
+
+  async function saveEntryOptions(field: FieldDef, options: string[]) {
+    await saveSchema(fields.map((current) => current.id === field.id ? { ...current, options } : current))
+    setToastMessage(`Updated ${field.name} options`)
+  }
 
   if (resource.loading)
     return (
@@ -137,10 +197,61 @@ export function CollectionPage() {
         </div>
       </header>
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        <details className="relative">
+          <summary className="cursor-pointer list-none rounded-md border border-border px-3 py-2 text-xs hover:bg-muted">
+            Saved views
+          </summary>
+          <div className="absolute left-0 top-10 z-20 rounded-lg border border-border bg-popover p-1 shadow-lg">
+            <button
+              type="button"
+              className="whitespace-nowrap rounded px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={() => {
+                setQuery('')
+                setFilterField('')
+                setFilterValue('')
+              }}
+            >
+              All entries
+            </button>
+          </div>
+        </details>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setFilterField(filterField ? '' : (fields[0]?.id ?? ''))}
+        >
+          Filters
+        </Button>
+        {dateField ? (
+          <Button
+            variant={filterField === dateField.id ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setFilterField(dateField.id)}
+          >
+            Date
+          </Button>
+        ) : null}
+        {amountField ? (
+          <Button
+            variant={filterField === amountField.id ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setFilterField(amountField.id)}
+          >
+            Amount
+          </Button>
+        ) : null}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => searchRef.current?.focus()}
+        >
+          Search
+        </Button>
         <label className="relative min-w-40 flex-1 sm:max-w-xs">
           <span className="sr-only">Search collection</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search entries"
@@ -169,6 +280,14 @@ export function CollectionPage() {
             className="w-32"
           />
         ) : null}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Sort entries"
+          onClick={() => toggleSort(sortField || dateField?.id || 'title')}
+        >
+          <ArrowUpDown />
+        </Button>
         <details className="relative">
           <summary
             className="grid size-9 cursor-pointer list-none place-items-center rounded-md border border-border text-muted-foreground hover:bg-muted"
@@ -224,6 +343,46 @@ export function CollectionPage() {
           ))}
         </div>
       </div>
+      <section
+        aria-label="Current filter summary"
+        className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3"
+      >
+        <div className="rounded-lg border border-border px-3 py-2">
+          <p className="text-xs text-muted-foreground">Entries</p>
+          <p className="text-right text-lg font-semibold tabular-nums">{filteredItems.length}</p>
+        </div>
+        {amountTotal !== null ? (
+          <>
+            <div className="rounded-lg border border-border px-3 py-2">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-right text-lg font-semibold tabular-nums">{currency(amountTotal)}</p>
+            </div>
+            <div className="rounded-lg border border-border px-3 py-2">
+              <p className="text-xs text-muted-foreground">Average</p>
+              <p className="text-right text-lg font-semibold tabular-nums">{currency(amountAverage)}</p>
+            </div>
+          </>
+        ) : null}
+      </section>
+      {toastMessage ? (
+        <p role="status" className="fixed bottom-4 right-4 z-50 rounded-lg border border-border bg-popover px-4 py-2 text-sm shadow-lg">
+          {toastMessage}
+          {undoAvailable ? (
+            <button
+              type="button"
+              className="ml-3 font-medium underline"
+              onClick={() => {
+                void undoRemoveItems()
+                setUndoAvailable(false)
+                setToastMessage('Deletion undone')
+              }}
+            >
+              Undo
+            </button>
+          ) : null}
+          <button type="button" className="ml-3 text-muted-foreground underline" onClick={() => setToastMessage('')}>Dismiss</button>
+        </p>
+      ) : null}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
@@ -257,7 +416,14 @@ export function CollectionPage() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => void removeItems(selectedIds)}
+              onClick={() =>
+                void removeItems(selectedIds).then((removed) => {
+                  if (removed) {
+                    setUndoAvailable(true)
+                    setToastMessage(`Deleted ${selectedIds.length} entries`)
+                  }
+                })
+              }
             >
               <Trash2 />
               Delete {selectedIds.length}
@@ -296,13 +462,23 @@ export function CollectionPage() {
               )
             }
             onSave={updateItem}
-            onDelete={(itemId) => void removeItems([itemId])}
+            selectedEntryId={entryId}
+            onOpen={(item) => setEntryQuery(item.id)}
+            onDelete={(itemId) =>
+              void removeItems([itemId]).then((removed) => {
+                if (removed) {
+                  setUndoAvailable(true)
+                  setToastMessage('Entry deleted')
+                }
+              })
+            }
           />
         ) : (
           <EntryView
             mode={display as Exclude<DisplayMode, 'table'>}
             items={filteredItems}
             fields={shownFields}
+            onOpen={(item) => setEntryQuery(item.id)}
           />
         )
       ) : (
@@ -370,6 +546,59 @@ export function CollectionPage() {
           collection={collection}
           onClose={() => setSchemaOpen(false)}
           onSave={saveSchema}
+        />
+      ) : null}
+      {selectedEntry ? (
+        <EntryDetailPanel
+          item={selectedEntry}
+          collection={collection}
+          detail={
+            entryDetails.detail ?? {
+              itemId: selectedEntry.id,
+              activity: [],
+              subItems: [],
+              files: [],
+              links: [],
+            }
+          }
+          fullPage={searchParams.get('full') === '1'}
+          onClose={() => setEntryQuery(undefined, false, true)}
+          onOpenFull={() =>
+            setEntryQuery(
+              selectedEntry.id,
+              searchParams.get('full') !== '1',
+              true,
+            )
+          }
+          onSaveField={(field, value) => void saveEntryField(field, value)}
+          onSaveTitle={(title) => void saveEntryTitle(title)}
+          onSaveOptions={(field, options) =>
+            void saveEntryOptions(field, options)
+          }
+          onAddNote={(note) => {
+            void entryDetails.addNote(note)
+            setToastMessage('Note added')
+          }}
+          onAddSubItem={async (title, dueDate) => {
+            if (!selectedEntry) return
+            const subItemId = await addSubItem(selectedEntry, title, dueDate)
+            await entryDetails.addSubItem(title, subItemId, dueDate)
+            setToastMessage('Sub-item added')
+          }}
+          onUpdateSubItem={async (id, completed) => {
+            await updateSubItem(id, completed)
+            await entryDetails.updateSubItem(id, completed)
+            setToastMessage(completed ? 'Sub-item completed' : 'Sub-item reopened')
+          }}
+          onAddFile={(file) => {
+            void entryDetails.addFile(file)
+            setToastMessage('File added')
+          }}
+          onAddLink={(url) => {
+            void entryDetails.addLink(url)
+            setToastMessage('Link added')
+          }}
+          onNotify={setToastMessage}
         />
       ) : null}
     </div>

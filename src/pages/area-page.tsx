@@ -52,6 +52,7 @@ import type {
   Area,
   AreaPageSpec,
   AreaSection,
+  AreaPageSettings,
   Block,
   BlockSize,
   CollectionSchema,
@@ -74,8 +75,19 @@ import { Select } from '@/components/ui/select'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ViewRenderer } from '@/components/areas/view-renderer'
 import { AreaIcon } from '@/components/areas/area-icon'
-import { areaIconOptions } from '@/components/areas/area-icon-options'
+import { blockOptions } from '@/components/areas/area-block-options'
+import { AreaSettingsPanel } from '@/components/areas/area-settings-panel'
+import {
+  BlockPicker,
+  DropZone,
+  SectionMenu,
+} from '@/components/areas/page-block-controls'
 import { InlineAreaField } from '@/components/areas/inline-area-field'
+import {
+  defaultAreaPageSettings,
+  PageCustomizeMenu,
+  PageSettingsPanel,
+} from '@/components/areas/page-settings-panel'
 import { cn } from '@/lib/utils'
 
 interface AreaScreenData {
@@ -139,111 +151,6 @@ const operationOptions = [
   ['max', 'Highest'],
   ['latest', 'Latest'],
 ] as const
-const blockOptions = [
-  {
-    key: 'text',
-    label: 'Text',
-    description: 'Add a thought, note, or longer passage.',
-    icon: FileText,
-  },
-  {
-    key: 'heading',
-    label: 'Heading',
-    description: 'Give a section a clear point of focus.',
-    icon: Heading,
-  },
-  {
-    key: 'list',
-    label: 'List',
-    description: 'Keep a few related ideas together.',
-    icon: List,
-  },
-  {
-    key: 'checklist',
-    label: 'Checklist',
-    description: 'Track steps as you complete them.',
-    icon: CheckSquare2,
-  },
-  {
-    key: 'image',
-    label: 'Image',
-    description: 'Keep a visual reference close by.',
-    icon: Image,
-  },
-  {
-    key: 'divider',
-    label: 'Divider',
-    description: 'Add a little breathing room.',
-    icon: Rows3,
-  },
-  {
-    key: 'callout',
-    label: 'Callout',
-    description: 'Set an important note apart.',
-    icon: Sparkles,
-  },
-  {
-    key: 'chart',
-    label: 'Chart',
-    description: 'Notice changes and patterns over time.',
-    icon: BarChart3,
-  },
-  {
-    key: 'number',
-    label: 'Number',
-    description: 'Keep one useful measure in view.',
-    icon: Activity,
-  },
-  {
-    key: 'table',
-    label: 'Table',
-    description: 'See structured entries at a glance.',
-    icon: Table2,
-  },
-  {
-    key: 'gallery',
-    label: 'Gallery',
-    description: 'Browse entries as a visual collection.',
-    icon: GalleryHorizontal,
-  },
-  {
-    key: 'cards',
-    label: 'Cards',
-    description: 'Give each entry a little more room.',
-    icon: LayoutGrid,
-  },
-  {
-    key: 'timeline',
-    label: 'Timeline',
-    description: 'See events in their order.',
-    icon: Rows3,
-  },
-  {
-    key: 'board',
-    label: 'Board',
-    description: 'Group work into flexible columns.',
-    icon: Columns3,
-  },
-  {
-    key: 'calendar',
-    label: 'Calendar',
-    description: 'Place entries on their dates.',
-    icon: CalendarDays,
-  },
-  {
-    key: 'linkedItems',
-    label: 'Linked items',
-    description: 'Connect related entries from a collection.',
-    icon: LinkIcon,
-  },
-  {
-    key: 'embeddedPage',
-    label: 'Embedded page',
-    description: 'Bring another area page into this space.',
-    icon: BookOpen,
-  },
-] as const
-
 export function AreaPage({ onCapture }: { onCapture: () => void }) {
   const { areaId = '' } = useParams()
   const location = useLocation()
@@ -256,6 +163,8 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   const { refresh: refreshAreaData } = resource
   const [pageId, setPageId] = useState('')
   const [customizing, setCustomizing] = useState(false)
+  const [customizeMenuOpen, setCustomizeMenuOpen] = useState(false)
+  const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
   const [settingsBlock, setSettingsBlock] = useState<string | null>(null)
   const [areaSettingsOpen, setAreaSettingsOpen] = useState(false)
   const [pageMenu, setPageMenu] = useState<string | null>(null)
@@ -281,15 +190,25 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
         .sort((a, b) => a.order - b.order),
     [data?.sections, page?.id],
   )
-  const visibleBlocks = useMemo(
+  const pageBlocks = useMemo(
     () =>
-      (data?.blocks ?? []).filter(
-        (block) =>
-          !block.sectionId ||
-          sections.some((section) => section.id === block.sectionId),
+      (data?.blocks ?? []).filter((block) =>
+        sections.some(
+          (section) =>
+            section.id === block.sectionId ||
+            (!block.sectionId && section.blockIds.includes(block.id)),
+        ),
       ),
     [data?.blocks, sections],
   )
+  const visibleBlocks = pageBlocks.filter(
+    (block) => !page?.hiddenBlockIds?.includes(block.id),
+  )
+  const pageSettings = { ...defaultAreaPageSettings, ...page?.settings }
+
+  useEffect(() => {
+    if (!pageId && data?.pages[0]) setPageId(data.pages[0].id)
+  }, [data?.pages, pageId])
 
   useEffect(() => {
     const refreshArea = () => void refreshAreaData()
@@ -377,7 +296,11 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
 
   function sectionBlocks(section: AreaSection) {
     return visibleBlocks
-      .filter((block) => (block.sectionId ?? sections[0]?.id) === section.id)
+      .filter(
+        (block) =>
+          block.sectionId === section.id ||
+          (!block.sectionId && section.blockIds.includes(block.id)),
+      )
       .sort((a, b) => a.order - b.order)
   }
 
@@ -398,6 +321,46 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   async function removeSection(section: AreaSection) {
     await areaLayoutApi.removeSection(section.id)
     await resource.refresh()
+  }
+
+  async function savePage(patch: Partial<AreaPageSpec>) {
+    if (!page) return
+    const updated = await areaLayoutApi.updatePage({ ...page, ...patch })
+    resource.setData((previous) =>
+      previous
+        ? {
+            ...previous,
+            pages: previous.pages.map((current) =>
+              current.id === updated.id ? updated : current,
+            ),
+          }
+        : previous,
+    )
+  }
+
+  async function togglePageBlock(block: Block, visible: boolean) {
+    if (!page) return
+    const hiddenBlockIds = new Set(page.hiddenBlockIds ?? [])
+    if (visible) hiddenBlockIds.delete(block.id)
+    else hiddenBlockIds.add(block.id)
+    await savePage({ hiddenBlockIds: [...hiddenBlockIds] })
+  }
+
+  async function resetPageSettings() {
+    if (!page) return
+    const section = sections[0]
+    const layout =
+      section?.layout === 'stack'
+        ? 'oneColumn'
+        : section?.columns === 3
+          ? 'threeColumns'
+          : section?.columns === 4
+            ? 'grid'
+            : 'twoColumns'
+    await savePage({
+      settings: { ...defaultAreaPageSettings, layout },
+      hiddenBlockIds: [],
+    })
   }
 
   async function addPage() {
@@ -647,7 +610,12 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   const area = data.area
 
   return (
-    <div className="mx-auto max-w-5xl pt-3">
+    <div
+      className={cn(
+        'mx-auto pt-3',
+        pageSettings.width === 'full' ? 'max-w-none' : 'max-w-5xl',
+      )}
+    >
       <header className="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex min-w-0 items-center gap-2">
@@ -682,18 +650,50 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setPageSettingsOpen(true)}
+            >
+              Page settings
+            </Button>
+          ) : null}
+          {customizing ? (
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setAreaSettingsOpen(true)}
             >
               Area settings
             </Button>
           ) : null}
-          <Button
-            variant={customizing ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCustomizing((value) => !value)}
-          >
-            {customizing ? 'Done' : 'Customize'}
-          </Button>
+          <div className="relative">
+            <Button
+              variant={customizing ? 'default' : 'outline'}
+              size="sm"
+              aria-expanded={customizeMenuOpen}
+              onClick={() => {
+                if (customizing) setCustomizing(false)
+                else setCustomizeMenuOpen((open) => !open)
+              }}
+            >
+              {customizing ? 'Done' : 'Customize'}
+            </Button>
+            {customizeMenuOpen && page ? (
+              <PageCustomizeMenu
+                blocks={pageBlocks}
+                hiddenBlockIds={page.hiddenBlockIds ?? []}
+                onToggleBlock={(block, visible) =>
+                  void togglePageBlock(block, visible)
+                }
+                onOpenSettings={() => {
+                  setCustomizeMenuOpen(false)
+                  setPageSettingsOpen(true)
+                }}
+                onEditLayout={() => {
+                  setCustomizeMenuOpen(false)
+                  setCustomizing(true)
+                }}
+              />
+            ) : null}
+          </div>
           <Button variant="ghost" size="sm" onClick={onCapture}>
             Quick capture
           </Button>
@@ -750,6 +750,16 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                         <div className="absolute right-0 top-8 z-30 flex w-44 flex-col rounded-lg border border-border bg-popover p-1 shadow-lg">
                           <button
                             className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                            onClick={() => {
+                              setPageId(item.id)
+                              setPageSettingsOpen(true)
+                              setPageMenu(null)
+                            }}
+                          >
+                            Page settings
+                          </button>
+                          <button
+                            className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
                             onClick={() => void renamePage(item)}
                           >
                             Rename
@@ -800,6 +810,24 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
           ) : null}
         </nav>
       ) : null}
+      {sections.length > 0 && pageBlocks.length === 0 ? (
+        <EmptyState
+          icon={Plus}
+          title="This page is empty"
+          message="Add a block to give this page a starting point."
+          action={
+            <BlockPicker
+              buttonLabel="Add a block"
+              open={picker?.sectionId === sections[0].id}
+              onPick={(type) => void addBlock(type, sections[0])}
+              onClose={() => setPicker(null)}
+              onOpenChange={(open) =>
+                setPicker(open ? { sectionId: sections[0].id } : null)
+              }
+            />
+          }
+        />
+      ) : null}
       {!sections.length ? (
         <EmptyState
           icon={Plus}
@@ -817,7 +845,12 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
           collisionDetection={closestCenter}
           onDragEnd={(event) => void reorderBlocks(event)}
         >
-          <div className="flex flex-col gap-5">
+          <div
+            className={cn(
+              'flex flex-col',
+              pageSettings.density === 'compact' ? 'gap-3' : 'gap-5',
+            )}
+          >
             {sections.map((section) => (
               <DropZone key={section.id} id={section.id} enabled={customizing}>
                 {customizing ? (
@@ -842,13 +875,21 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                   strategy={verticalListSortingStrategy}
                 >
                   <div
-                    className={
-                      section.layout === 'grid'
-                        ? `grid grid-cols-1 gap-4 ${section.columns === 2 ? 'md:grid-cols-2' : section.columns === 3 ? 'md:grid-cols-3' : section.columns === 4 ? 'md:grid-cols-4' : 'md:grid-cols-1'}`
-                        : 'flex flex-col gap-4'
-                    }
+                    className={cn(
+                      'grid grid-cols-1',
+                      pageSettings.density === 'compact' ? 'gap-2' : 'gap-4',
+                      pageSettings.layout === 'oneColumn'
+                        ? 'md:grid-cols-1'
+                        : pageSettings.layout === 'threeColumns'
+                          ? 'md:grid-cols-3'
+                          : pageSettings.layout === 'grid'
+                            ? 'md:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]'
+                            : 'md:grid-cols-2',
+                    )}
                   >
-                    {customizing && sectionBlocks(section).length === 0 ? (
+                    {customizing &&
+                    sectionBlocks(section).length === 0 &&
+                    pageBlocks.length > 0 ? (
                       <BlockPicker
                         open={picker?.sectionId === section.id}
                         onPick={(type) => void addBlock(type, section)}
@@ -865,6 +906,7 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                         <SortableBlock
                           block={block}
                           data={data}
+                          pageSettings={pageSettings}
                           customizing={customizing}
                           menuOpen={blockMenu === block.id}
                           onMenuOpenChange={(open) => {
@@ -920,8 +962,16 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
           Add section
         </Button>
       ) : null}
+      {pageSettingsOpen && page ? (
+        <PageSettingsPanel
+          page={page}
+          onClose={() => setPageSettingsOpen(false)}
+          onSave={(settings) => void savePage({ settings })}
+          onReset={() => void resetPageSettings()}
+        />
+      ) : null}
       {customizing && areaSettingsOpen ? (
-        <AreaSettings
+        <AreaSettingsPanel
           area={area}
           onClose={() => setAreaSettingsOpen(false)}
           onSave={saveArea}
@@ -939,228 +989,10 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   )
 }
 
-function DropZone({
-  id,
-  enabled,
-  children,
-}: {
-  id: string
-  enabled: boolean
-  children: ReactNode
-}) {
-  const { isOver, setNodeRef } = useDroppable({ id, disabled: !enabled })
-  return (
-    <section
-      ref={setNodeRef}
-      className={cn(
-        'min-w-0 rounded-lg',
-        isOver && 'outline outline-2 outline-primary/40',
-      )}
-    >
-      {children}
-    </section>
-  )
-}
-
-function BlockPicker({
-  onPick,
-  onClose,
-  onOpenChange,
-  open,
-}: {
-  onPick: (type: (typeof blockOptions)[number]['key']) => void
-  onClose?: () => void
-  onOpenChange?: (open: boolean) => void
-  open?: boolean
-}) {
-  const [internalOpen, setInternalOpen] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const isOpen = open ?? internalOpen
-
-  const setOpen = useCallback(
-    (next: boolean) => {
-      if (open === undefined) setInternalOpen(next)
-      onOpenChange?.(next)
-      if (!next) onClose?.()
-    },
-    [onClose, onOpenChange, open],
-  )
-
-  useEffect(() => {
-    if (!isOpen) return
-    const dismiss = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false)
-        triggerRef.current?.focus()
-      }
-    }
-    document.addEventListener('pointerdown', dismiss)
-    window.addEventListener('keydown', escape)
-    return () => {
-      document.removeEventListener('pointerdown', dismiss)
-      window.removeEventListener('keydown', escape)
-    }
-  }, [isOpen, setOpen])
-
-  return (
-    <div
-      ref={rootRef}
-      className="group/picker relative flex min-h-5 items-center"
-    >
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label="Add a block"
-        aria-expanded={isOpen}
-        onClick={() => setOpen(!isOpen)}
-        className="mx-auto grid size-6 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:text-foreground group-hover/picker:bg-muted group-hover/picker:text-foreground"
-      >
-        <Plus className="size-4" />
-      </button>
-      {isOpen ? (
-        <div
-          aria-label="Choose a block"
-          className="absolute left-1/2 top-7 z-30 grid w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-1 gap-1 rounded-xl border border-border bg-popover p-2 shadow-xl sm:grid-cols-2"
-        >
-          {blockOptions.map((option) => {
-            const Icon = option.icon
-            return (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => {
-                  onPick(option.key)
-                  setOpen(false)
-                  triggerRef.current?.focus()
-                }}
-                className="flex min-w-0 items-start gap-2 rounded-lg p-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">
-                    {option.label}
-                  </span>
-                  <span className="block text-xs leading-snug text-muted-foreground">
-                    {option.description}
-                  </span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-function SectionMenu({
-  section,
-  onUpdate,
-  onMove,
-  onDelete,
-}: {
-  section: AreaSection
-  onUpdate: (patch: Partial<AreaSection>) => void
-  onMove: (delta: number) => void
-  onDelete: () => void
-}) {
-  return (
-    <header className="mb-2 flex items-center justify-between gap-2">
-      <h2 className="text-sm font-medium text-muted-foreground">
-        {section.title || 'Section'}
-      </h2>
-      <details className="relative">
-        <summary
-          aria-label={`Section options${section.title ? ` for ${section.title}` : ''}`}
-          className="grid size-8 cursor-pointer list-none place-items-center rounded-md text-muted-foreground hover:bg-muted"
-        >
-          <MoreHorizontal className="size-4" />
-        </summary>
-        <div className="absolute right-0 top-9 z-20 flex w-64 flex-col gap-3 rounded-xl border border-border bg-popover p-3 shadow-lg">
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            Section title
-            <Input
-              aria-label="Section title"
-              defaultValue={section.title ?? ''}
-              onBlur={(event) =>
-                event.currentTarget.value !== section.title &&
-                onUpdate({ title: event.currentTarget.value })
-              }
-              className="h-8 text-sm text-foreground"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            Layout
-            <Select
-              aria-label="Section layout"
-              value={section.layout}
-              onChange={(event) =>
-                onUpdate({
-                  layout: event.target.value as AreaSection['layout'],
-                })
-              }
-            >
-              <option value="stack">Stack</option>
-              <option value="grid">Grid</option>
-            </Select>
-          </label>
-          {section.layout === 'grid' ? (
-            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-              Columns
-              <Select
-                aria-label="Section columns"
-                value={String(section.columns)}
-                onChange={(event) =>
-                  onUpdate({
-                    columns: Number(
-                      event.target.value,
-                    ) as AreaSection['columns'],
-                  })
-                }
-              >
-                {[1, 2, 3, 4].map((count) => (
-                  <option key={count} value={count}>
-                    {count} columns
-                  </option>
-                ))}
-              </Select>
-            </label>
-          ) : null}
-          <div className="flex gap-1">
-            <Button variant="outline" size="sm" onClick={() => onMove(-1)}>
-              <ArrowUp />
-              Move up
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onMove(1)}>
-              <ArrowDown />
-              Move down
-            </Button>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="justify-start text-destructive"
-            onClick={onDelete}
-          >
-            <Trash2 />
-            Delete section
-          </Button>
-        </div>
-      </details>
-    </header>
-  )
-}
-
 function SortableBlock({
   block,
   data,
+  pageSettings,
   customizing,
   menuOpen,
   onMenuOpenChange,
@@ -1175,6 +1007,7 @@ function SortableBlock({
 }: {
   block: Block
   data: AreaScreenData
+  pageSettings: AreaPageSettings
   customizing: boolean
   menuOpen: boolean
   onMenuOpenChange: (open: boolean) => void
@@ -1248,7 +1081,7 @@ function SortableBlock({
           {...sortable.attributes}
           {...sortable.listeners}
           aria-label={`Drag ${title}`}
-          className="absolute -left-2 top-1/2 z-10 grid size-6 -translate-x-full -translate-y-1/2 touch-none place-items-center rounded text-muted-foreground opacity-0 transition hover:bg-muted focus-visible:opacity-100 group-hover/block:opacity-100"
+          className="absolute -left-2 top-1/2 z-10 grid size-6 -translate-x-full -translate-y-1/2 touch-none place-items-center rounded text-muted-foreground hover:bg-muted"
         >
           <span aria-hidden="true">⋮⋮</span>
         </button>
@@ -1256,7 +1089,7 @@ function SortableBlock({
       {customizing ? (
         <div
           ref={menuRef}
-          className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/block:opacity-100 focus-within:opacity-100"
+          className="absolute right-1 top-1 z-10"
         >
           <button
             ref={menuTriggerRef}
@@ -1353,6 +1186,9 @@ function SortableBlock({
             spec={view}
             items={items}
             fields={collection.fields}
+            showTitle={pageSettings.showBlockTitles}
+            plain={pageSettings.blockStyle === 'plain'}
+            compact={pageSettings.density === 'compact'}
             onChangeSpec={(next) => {
               if (block.type === 'view') void onSave({ ...block, view: next })
             }}
@@ -1360,7 +1196,12 @@ function SortableBlock({
         ) : block.type === 'collection' && collection ? (
           <Link
             to={`/area/${collection.areaId}/collection/${collection.id}`}
-            className="block rounded-xl border border-border p-4 hover:border-primary/40"
+            className={cn(
+              'block rounded-xl p-4',
+              pageSettings.blockStyle === 'plain'
+                ? 'border-0 px-0'
+                : 'border border-border hover:border-primary/40',
+            )}
           >
             <h3 className="font-medium">{collection.name}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -1377,7 +1218,7 @@ function SortableBlock({
                 : 'rounded-lg border border-border/70 p-4'
             }
           >
-            {block.title ? (
+            {block.title && pageSettings.showBlockTitles ? (
               <h3 className="mb-2 text-sm font-medium">{block.title}</h3>
             ) : null}
             {customizing ? (
@@ -1461,7 +1302,7 @@ function SortableBlock({
           type="button"
           aria-label={`Resize ${title}`}
           title="Drag to resize"
-          className="absolute bottom-1 right-1 grid size-6 touch-none cursor-nwse-resize place-items-center rounded text-muted-foreground opacity-0 transition hover:bg-muted focus-visible:opacity-100 group-hover/block:opacity-100"
+          className="absolute bottom-1 right-1 grid size-6 touch-none cursor-nwse-resize place-items-center rounded text-muted-foreground hover:bg-muted"
           onPointerDown={(event) => {
             resizeStart.current = { x: event.clientX, y: event.clientY }
             event.currentTarget.setPointerCapture(event.pointerId)
@@ -1489,115 +1330,6 @@ function SortableBlock({
         </button>
       ) : null}
     </div>
-  )
-}
-
-const areaEmojiOptions = [
-  '📚',
-  '🌿',
-  '🏠',
-  '💰',
-  '🏃',
-  '🧭',
-  '🎨',
-  '✨',
-  '☀️',
-  '🎵',
-]
-
-function AreaSettings({
-  area,
-  onClose,
-  onSave,
-}: {
-  area: Area
-  onClose: () => void
-  onSave: (patch: Partial<Area>) => Promise<void>
-}) {
-  usePanelEscape(onClose)
-  return (
-    <aside
-      aria-label="Area settings"
-      className="fixed inset-y-0 right-0 z-40 w-full max-w-sm overflow-y-auto border-l border-border bg-background p-5 shadow-xl"
-    >
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Customize this space</p>
-          <h2 className="font-semibold">Area settings</h2>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Close area settings"
-          onClick={onClose}
-        >
-          <X />
-        </Button>
-      </div>
-      <div className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5 text-sm">
-          Name
-          <Input
-            aria-label="Area name"
-            defaultValue={area.name}
-            onBlur={(event) =>
-              event.currentTarget.value !== area.name &&
-              void onSave({ name: event.currentTarget.value })
-            }
-          />
-        </label>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Icon</legend>
-          <button
-            type="button"
-            aria-pressed={!area.icon}
-            onClick={() => void onSave({ icon: '' })}
-            className="w-fit rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            No icon
-          </button>
-          <div className="grid grid-cols-8 gap-1" aria-label="Emoji icons">
-            {areaEmojiOptions.map((emoji) => (
-              <button
-                type="button"
-                key={emoji}
-                aria-label={`Use ${emoji} icon`}
-                aria-pressed={area.icon === emoji}
-                onClick={() => void onSave({ icon: emoji })}
-                className="grid size-9 place-items-center rounded-md border border-border text-lg hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary/10"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-8 gap-1">
-            {areaIconOptions.map(({ name, icon: Icon }) => (
-              <button
-                type="button"
-                key={name}
-                aria-label={`Use ${name} icon`}
-                aria-pressed={area.icon === name}
-                onClick={() => void onSave({ icon: name })}
-                className="grid size-9 place-items-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary"
-              >
-                <Icon aria-hidden="true" className="size-4" />
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <label className="flex flex-col gap-1.5 text-sm">
-          Description
-          <Textarea
-            aria-label="Area description"
-            defaultValue={area.description}
-            onBlur={(event) =>
-              event.currentTarget.value !== area.description &&
-              void onSave({ description: event.currentTarget.value })
-            }
-          />
-        </label>
-      </div>
-    </aside>
   )
 }
 

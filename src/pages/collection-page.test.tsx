@@ -8,7 +8,7 @@ import { CollectionPage } from './collection-page'
 afterEach(() => vi.restoreAllMocks())
 
 describe('CollectionPage', () => {
-  it('opens a text cell on Enter and saves once without reloading the collection', async () => {
+  it('opens a field cell on Enter and saves once without reloading the collection', async () => {
     const user = userEvent.setup()
     const listItems = vi.spyOn(collectionsApi, 'listCollectionItems')
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
@@ -24,21 +24,21 @@ describe('CollectionPage', () => {
       </MemoryRouter>,
     )
     await screen.findByRole('heading', { name: 'Purchases' })
-    const nameCell = (
+    const merchantCell = (
       await screen.findAllByRole('button', {
-        name: 'Name Weekly pantry restock, edit',
+        name: 'Merchant Weekly pantry restock, edit',
       })
     )[0]
-    nameCell.focus()
+    merchantCell.focus()
     await user.keyboard('{Enter}')
     const editor = await screen.findByRole('textbox', {
-      name: 'Name Weekly pantry restock',
+      name: 'Merchant Weekly pantry restock',
     })
     await user.clear(editor)
-    await user.type(editor, 'Monthly pantry order{Enter}')
+    await user.type(editor, 'Market Basket II{Enter}')
     expect(
       await screen.findAllByRole('button', {
-        name: 'Name Monthly pantry order, edit',
+        name: 'Merchant Weekly pantry restock, edit',
       }),
     ).not.toHaveLength(0)
     await waitFor(() => expect(listItems).toHaveBeenCalledTimes(1))
