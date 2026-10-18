@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-async function loadApiBaseUrl(): Promise<string> {
+async function loadConfig() {
   vi.resetModules()
-  const { API_BASE_URL } = await import('./config')
-  return API_BASE_URL
+  return import('./config')
+}
+
+async function loadApiBaseUrl(): Promise<string> {
+  return (await loadConfig()).API_BASE_URL
 }
 
 afterEach(() => {
@@ -27,5 +30,30 @@ describe('API_BASE_URL', () => {
     vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8000')
 
     expect(await loadApiBaseUrl()).toBe('http://localhost:8000')
+  })
+})
+
+describe('USE_MOCK_API', () => {
+  it('uses mock mode in development when no backend URL is configured', async () => {
+    vi.stubEnv('DEV', true)
+    vi.stubEnv('VITE_API_BASE_URL', undefined)
+    vi.stubEnv('VITE_API_MODE', undefined)
+
+    expect((await loadConfig()).USE_MOCK_API).toBe(true)
+  })
+
+  it('uses the real API when a local backend URL is configured', async () => {
+    vi.stubEnv('DEV', true)
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8000')
+    vi.stubEnv('VITE_API_MODE', undefined)
+
+    expect((await loadConfig()).USE_MOCK_API).toBe(false)
+  })
+
+  it('allows an explicit mode to override the development default', async () => {
+    vi.stubEnv('DEV', true)
+    vi.stubEnv('VITE_API_MODE', 'real')
+
+    expect((await loadConfig()).USE_MOCK_API).toBe(false)
   })
 })

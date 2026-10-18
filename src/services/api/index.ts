@@ -1,14 +1,10 @@
+import { USE_MOCK_API } from '@/lib/config'
+import { authApi as realAuthApi } from './auth'
+import { mockAuthApi } from './mock-auth'
+import { mockNotesApi, mockProjectsApi } from './mock'
 import { realNotesApi, realProjectsApi } from './real'
 
-/**
- * The single API layer. Every component/store imports from here and never
- * calls `fetch` directly.
- *
- * Projects, notes, and auth (via `authApi` below) all hit the real FastAPI
- * backend over HTTP — see real.ts / auth.ts / http.ts. Attachments are the
- * only piece still pending a backend; there's no frontend type or UI for
- * them yet, so there's nothing to wire here until that's built.
- */
+/** Every component/store uses this API boundary and never calls fetch directly. */
 export interface ApiClient {
   listProjects: typeof realProjectsApi.listProjects
   getProject: typeof realProjectsApi.getProject
@@ -20,11 +16,10 @@ export interface ApiClient {
   deleteNote: typeof realNotesApi.deleteNote
 }
 
-export const api: ApiClient = {
-  ...realProjectsApi,
-  ...realNotesApi,
-}
+export const api: ApiClient = USE_MOCK_API
+  ? { ...mockProjectsApi, ...mockNotesApi }
+  : { ...realProjectsApi, ...realNotesApi }
 
-export { authApi } from './auth'
+export const authApi = USE_MOCK_API ? mockAuthApi : realAuthApi
 export { HttpError } from './http'
 export * from './types'
