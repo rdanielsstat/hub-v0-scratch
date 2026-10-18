@@ -15,9 +15,15 @@ export function QuickCaptureField({
 }) {
   if (field.type === 'choice' && field.options?.length)
     return (
-      <Select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+      <Select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
         <option value="">Choose</option>
-        {field.options.map((option) => <option key={option}>{option}</option>)}
+        {field.options.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
       </Select>
     )
   if (field.type === 'checkbox')
@@ -32,7 +38,17 @@ export function QuickCaptureField({
   return (
     <Input
       id={id}
-      type={field.type === 'date' ? 'date' : field.type === 'datetime' ? 'datetime-local' : field.type === 'number' || field.type === 'currency' || field.type === 'duration' ? 'number' : 'text'}
+      type={
+        field.type === 'date'
+          ? 'date'
+          : field.type === 'datetime'
+            ? 'datetime-local'
+            : field.type === 'number' ||
+                field.type === 'currency' ||
+                field.type === 'duration'
+              ? 'number'
+              : 'text'
+      }
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />

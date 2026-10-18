@@ -1,4 +1,10 @@
-import type { CollectionPreferences, CollectionSchema, FieldDef, Item, ItemValue } from './types'
+import type {
+  CollectionPreferences,
+  CollectionSchema,
+  FieldDef,
+  Item,
+  ItemValue,
+} from './types'
 import {
   mockAreas,
   mockCollections,

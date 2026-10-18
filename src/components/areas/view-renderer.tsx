@@ -69,7 +69,9 @@ export function ViewRenderer({ spec, items, fields, onChangeSpec }: Props) {
             >
               Open
             </Link>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
           {spec.period && onChangeSpec ? (
             <Select
               aria-label={`${spec.title} period`}
@@ -172,9 +174,14 @@ function TableView({ visibleItems, columns }: RenderProps) {
       <table className="w-full table-fixed text-left text-xs">
         <thead className="sticky top-0 bg-card text-muted-foreground">
           <tr>
-            <th className="whitespace-normal break-words py-2 pr-2 font-medium">Name</th>
+            <th className="whitespace-normal break-words py-2 pr-2 font-medium">
+              Name
+            </th>
             {fittedColumns.map((field) => (
-              <th key={field.id} className="whitespace-normal break-words py-2 pr-2 font-medium">
+              <th
+                key={field.id}
+                className="whitespace-normal break-words py-2 pr-2 font-medium"
+              >
                 {field.name}
               </th>
             ))}
@@ -187,7 +194,10 @@ function TableView({ visibleItems, columns }: RenderProps) {
                 {item.title}
               </td>
               {fittedColumns.map((field) => (
-                <td key={field.id} className="whitespace-normal break-words py-2 pr-2 text-muted-foreground">
+                <td
+                  key={field.id}
+                  className="whitespace-normal break-words py-2 pr-2 text-muted-foreground"
+                >
                   <FieldValue value={item.data[field.id]} field={field} />
                 </td>
               ))}
@@ -206,7 +216,10 @@ function CardsView({ visibleItems, columns }: RenderProps) {
         <article key={item.id} className="rounded-lg border border-border p-3">
           <h4 className="text-sm font-medium">{item.title}</h4>
           {columns.slice(0, 3).map((field) => (
-            <p key={field.id} className="mt-1 break-words text-xs text-muted-foreground">
+            <p
+              key={field.id}
+              className="mt-1 break-words text-xs text-muted-foreground"
+            >
               <span>{field.name}: </span>
               <FieldValue value={item.data[field.id]} field={field} />
             </p>
@@ -224,7 +237,10 @@ function GalleryView({ visibleItems, columns }: RenderProps) {
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {visibleItems.map((item) => {
         const image = imageField ? item.data[imageField.id] : undefined
-        const imageUrl = typeof image === 'string' && image && !displayedImages.has(image) ? image : null
+        const imageUrl =
+          typeof image === 'string' && image && !displayedImages.has(image)
+            ? image
+            : null
         if (imageUrl) displayedImages.add(imageUrl)
         return (
           <article
@@ -233,7 +249,11 @@ function GalleryView({ visibleItems, columns }: RenderProps) {
           >
             <div className="grid aspect-[4/3] place-items-center bg-muted">
               {imageUrl ? (
-                <img src={imageUrl} alt={item.title} className="size-full object-cover" />
+                <img
+                  src={imageUrl}
+                  alt={item.title}
+                  className="size-full object-cover"
+                />
               ) : (
                 <div className="flex flex-col items-center gap-2 px-3 text-center text-xs text-muted-foreground">
                   <ImageIcon aria-hidden="true" className="size-8 opacity-50" />
@@ -248,7 +268,6 @@ function GalleryView({ visibleItems, columns }: RenderProps) {
     </div>
   )
 }
-
 
 function ListView({ visibleItems }: RenderProps) {
   return (
@@ -271,7 +290,10 @@ function TimelineView({ visibleItems }: RenderProps) {
           <div>
             <p className="text-sm font-medium">{item.title}</p>
             <time className="text-xs text-muted-foreground">
-              {formatLocalDate(item.occurredAt ?? item.createdAt, (item.occurredAt ?? item.createdAt).includes('T'))}
+              {formatLocalDate(
+                item.occurredAt ?? item.createdAt,
+                (item.occurredAt ?? item.createdAt).includes('T'),
+              )}
             </time>
           </div>
         </li>

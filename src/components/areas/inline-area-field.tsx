@@ -26,12 +26,11 @@ export function InlineAreaField({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (editing) {
-      const active = as === 'input' ? inputRef.current : textareaRef.current
-      active?.focus()
-      active?.select()
-    } else setDraft(value)
-  }, [editing, value])
+    if (!editing) return
+    const active = as === 'input' ? inputRef.current : textareaRef.current
+    active?.focus()
+    active?.select()
+  }, [as, editing])
 
   async function save() {
     if (saving.current) return
@@ -39,7 +38,11 @@ export function InlineAreaField({
       canceled.current = false
       return
     }
-    const next = (as === 'input' ? inputRef.current?.value : textareaRef.current?.value)?.trim() ?? draft.trim()
+    const next =
+      (as === 'input'
+        ? inputRef.current?.value
+        : textareaRef.current?.value
+      )?.trim() ?? draft.trim()
     if (next !== value) {
       saving.current = true
       try {
@@ -100,10 +103,15 @@ export function InlineAreaField({
     <button
       type="button"
       aria-label={`${value || label}, edit`}
-      onClick={() => setEditing(true)}
+      onClick={() => {
+        setDraft(value)
+        setEditing(true)
+      }}
       className={`block rounded-md text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className ?? ''} ${as === 'textarea' ? 'whitespace-pre-wrap' : 'break-words'}`}
     >
-      {value || <span className="text-muted-foreground">Add a description</span>}
+      {value || (
+        <span className="text-muted-foreground">Add a description</span>
+      )}
     </button>
   )
 }

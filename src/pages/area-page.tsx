@@ -73,7 +73,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ViewRenderer } from '@/components/areas/view-renderer'
-import { AreaIcon, areaIconOptions } from '@/components/areas/area-icon'
+import { AreaIcon } from '@/components/areas/area-icon'
+import { areaIconOptions } from '@/components/areas/area-icon-options'
 import { InlineAreaField } from '@/components/areas/inline-area-field'
 import { cn } from '@/lib/utils'
 
@@ -261,7 +262,10 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   const [blockMenu, setBlockMenu] = useState<string | null>(null)
   const pageMenuRef = useRef<HTMLDivElement>(null)
   const [selectedBlock, setSelectedBlock] = useState<string | null>(null)
-  const [picker, setPicker] = useState<{ afterId?: string; sectionId?: string } | null>(null)
+  const [picker, setPicker] = useState<{
+    afterId?: string
+    sectionId?: string
+  } | null>(null)
   const [saveError, setSaveError] = useState('')
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -297,7 +301,8 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   useEffect(() => {
     if (!pageMenu) return
     const dismiss = (event: PointerEvent) => {
-      if (!pageMenuRef.current?.contains(event.target as Node)) setPageMenu(null)
+      if (!pageMenuRef.current?.contains(event.target as Node))
+        setPageMenu(null)
     }
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setPageMenu(null)
@@ -415,19 +420,29 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
 
   async function movePage(current: AreaPageSpec, delta: number) {
     if (!data) return
-    const ordered = [...data.pages].sort((left, right) => left.order - right.order)
+    const ordered = [...data.pages].sort(
+      (left, right) => left.order - right.order,
+    )
     const index = ordered.findIndex((item) => item.id === current.id)
     const target = index + delta
     if (target < 0 || target >= ordered.length) return
     ;[ordered[index], ordered[target]] = [ordered[target], ordered[index]]
-    await areaLayoutApi.reorderPages(areaId, ordered.map((item) => item.id))
+    await areaLayoutApi.reorderPages(
+      areaId,
+      ordered.map((item) => item.id),
+    )
     setPageMenu(null)
     await resource.refresh()
   }
 
   async function deletePage(current: AreaPageSpec) {
     if (!data || data.pages.length < 2) return
-    if (!window.confirm(`Delete the page “${current.name}”? This cannot be undone.`)) return
+    if (
+      !window.confirm(
+        `Delete the page “${current.name}”? This cannot be undone.`,
+      )
+    )
+      return
     await areaLayoutApi.removePage(areaId, current.id)
     setPageMenu(null)
     setPageId(data.pages.find((item) => item.id !== current.id)?.id ?? '')
@@ -636,7 +651,10 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
       <header className="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex min-w-0 items-center gap-2">
-            <AreaIcon name={area.icon} className="size-5 shrink-0 text-primary" />
+            <AreaIcon
+              name={area.icon}
+              className="size-5 shrink-0 text-primary"
+            />
             <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight sm:text-3xl">
               <InlineAreaField
                 value={area.name}
@@ -697,7 +715,10 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
               const isActive = page?.id === item.id
               const showMenu = customizing || isActive
               return (
-                <div key={item.id} className="relative flex shrink-0 items-center gap-1">
+                <div
+                  key={item.id}
+                  className="relative flex shrink-0 items-center gap-1"
+                >
                   <button
                     aria-current={isActive ? 'page' : undefined}
                     onClick={() => setPageId(item.id)}
@@ -706,7 +727,10 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                     {item.name}
                   </button>
                   {showMenu ? (
-                    <div ref={pageMenu === item.id ? pageMenuRef : undefined} className="relative">
+                    <div
+                      ref={pageMenu === item.id ? pageMenuRef : undefined}
+                      className="relative"
+                    >
                       <button
                         type="button"
                         aria-label={`Options for ${item.name}`}
@@ -714,7 +738,9 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                         onClick={() => {
                           setPicker(null)
                           setBlockMenu(null)
-                          setPageMenu((current) => current === item.id ? null : item.id)
+                          setPageMenu((current) =>
+                            current === item.id ? null : item.id,
+                          )
                         }}
                         className="grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted"
                       >
@@ -722,16 +748,43 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                       </button>
                       {pageMenu === item.id ? (
                         <div className="absolute right-0 top-8 z-30 flex w-44 flex-col rounded-lg border border-border bg-popover p-1 shadow-lg">
-                          <button className="rounded px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => void renamePage(item)}>Rename</button>
-                          <button disabled={index === 0} className="rounded px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void movePage(item, -1)}>Move left</button>
-                          <button disabled={index === data.pages.length - 1} className="rounded px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" onClick={() => void movePage(item, 1)}>Move right</button>
+                          <button
+                            className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                            onClick={() => void renamePage(item)}
+                          >
+                            Rename
+                          </button>
+                          <button
+                            disabled={index === 0}
+                            className="rounded px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => void movePage(item, -1)}
+                          >
+                            Move left
+                          </button>
+                          <button
+                            disabled={index === data.pages.length - 1}
+                            className="rounded px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => void movePage(item, 1)}
+                          >
+                            Move right
+                          </button>
                           <button
                             disabled={data.pages.length < 2}
-                            title={data.pages.length < 2 ? 'An area needs at least one page.' : undefined}
+                            title={
+                              data.pages.length < 2
+                                ? 'An area needs at least one page.'
+                                : undefined
+                            }
                             className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={() => void deletePage(item)}
-                          >Delete</button>
-                          {data.pages.length < 2 ? <span className="px-3 pb-2 text-xs text-muted-foreground">Keep at least one page.</span> : null}
+                          >
+                            Delete
+                          </button>
+                          {data.pages.length < 2 ? (
+                            <span className="px-3 pb-2 text-xs text-muted-foreground">
+                              Keep at least one page.
+                            </span>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
@@ -775,7 +828,12 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
                     onDelete={() => void removeSection(section)}
                   />
                 ) : (
-                  <h2 className={cn('mb-3 text-sm font-semibold', !section.title && 'sr-only')}>
+                  <h2
+                    className={cn(
+                      'mb-3 text-sm font-semibold',
+                      !section.title && 'sr-only',
+                    )}
+                  >
                     {section.title || 'Section'}
                   </h2>
                 )}
@@ -920,11 +978,14 @@ function BlockPicker({
   const rootRef = useRef<HTMLDivElement>(null)
   const isOpen = open ?? internalOpen
 
-  function setOpen(next: boolean) {
-    if (open === undefined) setInternalOpen(next)
-    onOpenChange?.(next)
-    if (!next) onClose?.()
-  }
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (open === undefined) setInternalOpen(next)
+      onOpenChange?.(next)
+      if (!next) onClose?.()
+    },
+    [onClose, onOpenChange, open],
+  )
 
   useEffect(() => {
     if (!isOpen) return
@@ -946,10 +1007,13 @@ function BlockPicker({
       document.removeEventListener('pointerdown', dismiss)
       window.removeEventListener('keydown', escape)
     }
-  }, [isOpen])
+  }, [isOpen, setOpen])
 
   return (
-    <div ref={rootRef} className="group/picker relative flex min-h-5 items-center">
+    <div
+      ref={rootRef}
+      className="group/picker relative flex min-h-5 items-center"
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -961,7 +1025,10 @@ function BlockPicker({
         <Plus className="size-4" />
       </button>
       {isOpen ? (
-        <div aria-label="Choose a block" className="absolute left-1/2 top-7 z-30 grid w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-1 gap-1 rounded-xl border border-border bg-popover p-2 shadow-xl sm:grid-cols-2">
+        <div
+          aria-label="Choose a block"
+          className="absolute left-1/2 top-7 z-30 grid w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 grid-cols-1 gap-1 rounded-xl border border-border bg-popover p-2 shadow-xl sm:grid-cols-2"
+        >
           {blockOptions.map((option) => {
             const Icon = option.icon
             return (
@@ -977,8 +1044,12 @@ function BlockPicker({
               >
                 <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{option.label}</span>
-                  <span className="block text-xs leading-snug text-muted-foreground">{option.description}</span>
+                  <span className="block text-sm font-medium">
+                    {option.label}
+                  </span>
+                  <span className="block text-xs leading-snug text-muted-foreground">
+                    {option.description}
+                  </span>
                 </span>
               </button>
             )
@@ -1124,7 +1195,8 @@ function SortableBlock({
   useEffect(() => {
     if (!menuOpen) return
     const dismiss = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) onMenuOpenChange(false)
+      if (!menuRef.current?.contains(event.target as Node))
+        onMenuOpenChange(false)
     }
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -1182,7 +1254,10 @@ function SortableBlock({
         </button>
       ) : null}
       {customizing ? (
-        <div ref={menuRef} className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/block:opacity-100 focus-within:opacity-100">
+        <div
+          ref={menuRef}
+          className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/block:opacity-100 focus-within:opacity-100"
+        >
           <button
             ref={menuTriggerRef}
             type="button"
@@ -1417,7 +1492,18 @@ function SortableBlock({
   )
 }
 
-const areaEmojiOptions = ['📚', '🌿', '🏠', '💰', '🏃', '🧭', '🎨', '✨', '☀️', '🎵']
+const areaEmojiOptions = [
+  '📚',
+  '🌿',
+  '🏠',
+  '💰',
+  '🏃',
+  '🧭',
+  '🎨',
+  '✨',
+  '☀️',
+  '🎵',
+]
 
 function AreaSettings({
   area,
@@ -1575,11 +1661,15 @@ function BlockSettings({
           Title
           <Input
             aria-label="Block title"
-            defaultValue={block.type === 'view' ? block.view.title : (block.title ?? '')}
+            defaultValue={
+              block.type === 'view' ? block.view.title : (block.title ?? '')
+            }
             onBlur={(event) => {
-              const currentTitle = block.type === 'view' ? block.view.title : (block.title ?? '')
+              const currentTitle =
+                block.type === 'view' ? block.view.title : (block.title ?? '')
               if (event.currentTarget.value !== currentTitle) {
-                if (block.type === 'view') updateView({ title: event.currentTarget.value })
+                if (block.type === 'view')
+                  updateView({ title: event.currentTarget.value })
                 else updateBlock({ title: event.currentTarget.value })
               }
             }}

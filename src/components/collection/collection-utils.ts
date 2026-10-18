@@ -10,11 +10,18 @@ export const valueText = (value: ItemValue | undefined) =>
         : String(value)
 
 export function parseValue(field: FieldDef, value: string): ItemValue {
-  if (field.type === 'number' || field.type === 'currency' || field.type === 'duration')
+  if (
+    field.type === 'number' ||
+    field.type === 'currency' ||
+    field.type === 'duration'
+  )
     return value ? Number(value) : 0
   if (field.type === 'checkbox') return value === 'true'
   if (field.type === 'multiChoice')
-    return value.split(',').map((part) => part.trim()).filter(Boolean)
+    return value
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
   return value
 }
 
@@ -47,5 +54,9 @@ export function parseCsv(text: string) {
   currentRow.push(currentCell)
   if (currentRow.some(Boolean)) rows.push(currentRow)
   const [headers = [], ...values] = rows
-  return values.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])))
+  return values.map((row) =>
+    Object.fromEntries(
+      headers.map((header, index) => [header, row[index] ?? '']),
+    ),
+  )
 }

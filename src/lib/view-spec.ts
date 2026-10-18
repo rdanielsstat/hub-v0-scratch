@@ -1,5 +1,9 @@
 import type { Item, ViewSpec } from '@/services/api'
-import { localDateString, normalizeLocalDate, parseLocalDate } from '@/lib/local-date'
+import {
+  localDateString,
+  normalizeLocalDate,
+  parseLocalDate,
+} from '@/lib/local-date'
 
 function dateOf(item: Item) {
   const dateOnly = Object.values(item.data).find(
@@ -7,7 +11,8 @@ function dateOf(item: Item) {
       typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value),
   )
   if (dateOnly) return parseLocalDate(dateOnly)
-  if (item.occurredAt) return normalizeLocalDate(parseLocalDate(item.occurredAt))
+  if (item.occurredAt)
+    return normalizeLocalDate(parseLocalDate(item.occurredAt))
   return normalizeLocalDate(new Date(item.createdAt))
 }
 
@@ -19,7 +24,9 @@ export function applyViewSpec(spec: ViewSpec, items: Item[], now = new Date()) {
   if (spec.period === 'thisMonth') cutoff.setTime(monthStart.getTime())
   if (spec.period === 'last30Days') cutoff.setDate(cutoff.getDate() - 30)
   if (spec.period === '12Months')
-    cutoff.setTime(new Date(today.getFullYear(), today.getMonth() - 11, 1).getTime())
+    cutoff.setTime(
+      new Date(today.getFullYear(), today.getMonth() - 11, 1).getTime(),
+    )
   let selected = items.filter((item) => {
     const itemDate = dateOf(item)
     if (

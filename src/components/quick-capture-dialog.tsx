@@ -60,11 +60,18 @@ const quickFieldsFor = (collection: CollectionSchema) => {
   const titleField = fields.find((field) => field.type === 'text') ?? fields[0]
   const preferred = [
     titleField,
-    fields.find((field) => field.id === 'amount' || /amount|total|price/i.test(field.name)),
-    fields.find((field) => field.id === 'category' || /category/i.test(field.name)),
+    fields.find(
+      (field) =>
+        field.id === 'amount' || /amount|total|price/i.test(field.name),
+    ),
+    fields.find(
+      (field) => field.id === 'category' || /category/i.test(field.name),
+    ),
     fields.find((field) => field.type === 'date'),
   ].filter((field): field is NonNullable<typeof field> => Boolean(field))
-  return [...new Map(preferred.map((field) => [field.id, field])).values()].slice(0, 4)
+  return [
+    ...new Map(preferred.map((field) => [field.id, field])).values(),
+  ].slice(0, 4)
 }
 
 export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
@@ -95,7 +102,9 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
   const selectedCollection =
     collections.find((collection) => collection.id === collectionId) ??
     collections[0]
-  const quickFields = selectedCollection ? quickFieldsFor(selectedCollection) : []
+  const quickFields = selectedCollection
+    ? quickFieldsFor(selectedCollection)
+    : []
   const [form, setForm] = useState(empty)
   const [expanded, setExpanded] = useState(false)
   const visibleAreaFields = expanded
@@ -147,16 +156,21 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
         selectedCollection.fields.find((field) => field.type === 'text') ??
         selectedCollection.fields[0]
       const titleValue = titleField ? data[titleField.id] : undefined
-      const dateField = selectedCollection.fields.find((field) => field.type === 'date')
-      const occurredAt = dateField ? String(data[dateField.id] ?? localDateString()) : localDateString()
+      const dateField = selectedCollection.fields.find(
+        (field) => field.type === 'date',
+      )
+      const occurredAt = dateField
+        ? String(data[dateField.id] ?? localDateString())
+        : localDateString()
       await collectionsApi.createItem({
         areaId: activeAreaId,
         collectionId: selectedCollection.id,
-        title: titleValue === undefined || titleValue === ''
-          ? 'Untitled item'
-          : Array.isArray(titleValue)
-            ? titleValue.join(', ')
-            : String(titleValue),
+        title:
+          titleValue === undefined || titleValue === ''
+            ? 'Untitled item'
+            : Array.isArray(titleValue)
+              ? titleValue.join(', ')
+              : String(titleValue),
         type: selectedCollection.id,
         occurredAt,
         data,
@@ -206,9 +220,11 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
     <Dialog open={open} onClose={handleClose} title="Quick capture">
       <DialogHeader
         title="Quick capture"
-        description={target === 'project'
-          ? 'Get it out of your head. Only a name is required.'
-          : 'Add a quick entry to an area with only the key fields in view.'}
+        description={
+          target === 'project'
+            ? 'Get it out of your head. Only a name is required.'
+            : 'Add a quick entry to an area with only the key fields in view.'
+        }
       />
       <DialogBody className="flex flex-col gap-4">
         <div
@@ -236,7 +252,6 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
                 setAreaId(defaultAreaId)
                 setCollectionId('')
               }
-
             }}
           >
             Add to an area
@@ -244,132 +259,134 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
         </div>
         {target === 'project' ? (
           <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="qc-name">Name</Label>
-            <Input
-              id="qc-name"
-              maxLength={PROJECT_NAME_MAX_LENGTH}
-              autoFocus
-              placeholder="e.g. Chess improvement analytics"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              onKeyDown={(e) => {
-                if (
-                  e.key === 'Enter' &&
-                  !e.nativeEvent.isComposing &&
-                  e.keyCode !== 229
-                ) {
-                  e.preventDefault()
-                  void handleSubmit(false)
-                }
-              }}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="qc-pitch">One-line pitch</Label>
-            <Input
-              id="qc-pitch"
-              maxLength={PITCH_MAX_LENGTH}
-              placeholder="The scannable version"
-              value={form.pitch}
-              onChange={(e) => setForm({ ...form, pitch: e.target.value })}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronDown
-              className={cn(
-                'size-3.5 transition-transform',
-                expanded && 'rotate-180',
-              )}
-            />
-            {expanded ? 'Fewer details' : 'More details'}
-          </button>
-
-          {expanded ? (
-            <div className="flex flex-col gap-4 border-t border-border pt-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="qc-desc">Brain dump</Label>
-                <Textarea
-                  id="qc-desc"
-                  maxLength={DESCRIPTION_MAX_LENGTH}
-                  placeholder="Everything you're thinking about this…"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="qc-name">Name</Label>
+              <Input
+                id="qc-name"
+                maxLength={PROJECT_NAME_MAX_LENGTH}
+                autoFocus
+                placeholder="e.g. Chess improvement analytics"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === 'Enter' &&
+                    !e.nativeEvent.isComposing &&
+                    e.keyCode !== 229
+                  ) {
+                    e.preventDefault()
+                    void handleSubmit(false)
                   }
-                />
-              </div>
+                }}
+              />
+            </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="qc-pitch">One-line pitch</Label>
+              <Input
+                id="qc-pitch"
+                maxLength={PITCH_MAX_LENGTH}
+                placeholder="The scannable version"
+                value={form.pitch}
+                onChange={(e) => setForm({ ...form, pitch: e.target.value })}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronDown
+                className={cn(
+                  'size-3.5 transition-transform',
+                  expanded && 'rotate-180',
+                )}
+              />
+              {expanded ? 'Fewer details' : 'More details'}
+            </button>
+
+            {expanded ? (
+              <div className="flex flex-col gap-4 border-t border-border pt-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="qc-status">Status</Label>
-                  <Select
-                    id="qc-status"
-                    value={form.status}
+                  <Label htmlFor="qc-desc">Brain dump</Label>
+                  <Textarea
+                    id="qc-desc"
+                    maxLength={DESCRIPTION_MAX_LENGTH}
+                    placeholder="Everything you're thinking about this…"
+                    value={form.description}
                     onChange={(e) =>
-                      setForm({ ...form, status: e.target.value as Status })
+                      setForm({ ...form, description: e.target.value })
                     }
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </Select>
+                  />
                 </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="qc-status">Status</Label>
+                    <Select
+                      id="qc-status"
+                      value={form.status}
+                      onChange={(e) =>
+                        setForm({ ...form, status: e.target.value as Status })
+                      }
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="qc-tags">Tags</Label>
+                    <Input
+                      id="qc-tags"
+                      maxLength={TAG_LIST_INPUT_MAX_LENGTH}
+                      placeholder="stats, chess"
+                      value={form.tags}
+                      onChange={(e) =>
+                        setForm({ ...form, tags: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="qc-tags">Tags</Label>
+                  <Label htmlFor="qc-next">Next action</Label>
                   <Input
-                    id="qc-tags"
-                    maxLength={TAG_LIST_INPUT_MAX_LENGTH}
-                    placeholder="stats, chess"
-                    value={form.tags}
-                    onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                    id="qc-next"
+                    maxLength={NEXT_ACTION_MAX_LENGTH}
+                    placeholder="The single next concrete step"
+                    value={form.nextAction}
+                    onChange={(e) =>
+                      setForm({ ...form, nextAction: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <ScorePicker
+                    label="Excitement"
+                    tone="excitement"
+                    value={form.excitement}
+                    onChange={(v) => setForm({ ...form, excitement: v })}
+                  />
+                  <ScorePicker
+                    label="Potential"
+                    tone="potential"
+                    value={form.potential}
+                    onChange={(v) => setForm({ ...form, potential: v })}
+                  />
+                  <ScorePicker
+                    label="Effort"
+                    tone="effort"
+                    value={form.effort}
+                    onChange={(v) => setForm({ ...form, effort: v })}
                   />
                 </div>
               </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="qc-next">Next action</Label>
-                <Input
-                  id="qc-next"
-                  maxLength={NEXT_ACTION_MAX_LENGTH}
-                  placeholder="The single next concrete step"
-                  value={form.nextAction}
-                  onChange={(e) =>
-                    setForm({ ...form, nextAction: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <ScorePicker
-                  label="Excitement"
-                  tone="excitement"
-                  value={form.excitement}
-                  onChange={(v) => setForm({ ...form, excitement: v })}
-                />
-                <ScorePicker
-                  label="Potential"
-                  tone="potential"
-                  value={form.potential}
-                  onChange={(v) => setForm({ ...form, potential: v })}
-                />
-                <ScorePicker
-                  label="Effort"
-                  tone="effort"
-                  value={form.effort}
-                  onChange={(v) => setForm({ ...form, effort: v })}
-                />
-              </div>
-            </div>
-          ) : null}
+            ) : null}
           </div>
         ) : null}
         {target === 'area' ? (
@@ -436,26 +453,39 @@ export function QuickCaptureDialog({ open, onClose, defaultAreaId }: Props) {
             {visibleAreaFields.map((field) => (
               <label key={field.id} className="flex flex-col gap-1.5 text-sm">
                 <Label htmlFor={`qc-area-field-${field.id}`}>
-                  {field.name}{field.unit ? ` (${field.unit})` : ''}
+                  {field.name}
+                  {field.unit ? ` (${field.unit})` : ''}
                 </Label>
                 <QuickCaptureField
                   id={`qc-area-field-${field.id}`}
                   field={field}
-                  value={areaDraft[field.id] ?? (field.type === 'date' ? localDateString() : '')}
+                  value={
+                    areaDraft[field.id] ??
+                    (field.type === 'date' ? localDateString() : '')
+                  }
                   onChange={(value) =>
-                    setAreaDraft((current) => ({ ...current, [field.id]: value }))
+                    setAreaDraft((current) => ({
+                      ...current,
+                      [field.id]: value,
+                    }))
                   }
                 />
               </label>
             ))}
-            {selectedCollection && selectedCollection.fields.length > quickFields.length ? (
+            {selectedCollection &&
+            selectedCollection.fields.length > quickFields.length ? (
               <button
                 type="button"
                 aria-expanded={expanded}
                 onClick={() => setExpanded((current) => !current)}
                 className="flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
-                <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} />
+                <ChevronDown
+                  className={cn(
+                    'size-3.5 transition-transform',
+                    expanded && 'rotate-180',
+                  )}
+                />
                 {expanded ? 'Fewer fields' : 'More fields'}
               </button>
             ) : null}

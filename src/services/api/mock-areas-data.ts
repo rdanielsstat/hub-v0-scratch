@@ -107,7 +107,7 @@ const fields = (
       string?,
       string[]?,
     ]
-  >
+  >,
 ) =>
   definitions.map(([id, name, type, unit, options], order) => ({
     id,
@@ -117,7 +117,6 @@ const fields = (
     options,
     order,
   }))
-
 
 export const mockCollections: CollectionSchema[] = [
   {
@@ -132,7 +131,19 @@ export const mockCollections: CollectionSchema[] = [
       ['purchaseDate', 'Purchase date', 'date'],
       ['amount', 'Amount', 'currency'],
       ['warrantyEnds', 'Warranty ends', 'date'],
-      ['location', 'Location', 'choice', undefined, ['Studio shelf', 'Living room', 'Bedroom dresser', 'Garage', 'Hall closet']],
+      [
+        'location',
+        'Location',
+        'choice',
+        undefined,
+        [
+          'Studio shelf',
+          'Living room',
+          'Bedroom dresser',
+          'Garage',
+          'Hall closet',
+        ],
+      ],
       ['photo', 'Photo', 'image'],
     ]),
     createdAt: stamp(120),
@@ -146,7 +157,21 @@ export const mockCollections: CollectionSchema[] = [
     fields: fields([
       ['merchant', 'Merchant', 'text'],
       ['description', 'Description', 'text'],
-      ['category', 'Category', 'choice', undefined, ['Groceries', 'Home', 'Dining', 'Transport', 'Health', 'Utilities', 'Personal']],
+      [
+        'category',
+        'Category',
+        'choice',
+        undefined,
+        [
+          'Groceries',
+          'Home',
+          'Dining',
+          'Transport',
+          'Health',
+          'Utilities',
+          'Personal',
+        ],
+      ],
       ['amount', 'Amount', 'currency'],
       ['date', 'Date', 'date'],
       ['payment', 'Payment', 'choice', undefined, ['Card', 'Checking', 'Cash']],
@@ -188,7 +213,13 @@ export const mockCollections: CollectionSchema[] = [
     description: 'Accounts and the holdings inside them.',
     fields: fields([
       ['account', 'Account', 'text'],
-      ['kind', 'Type', 'choice', undefined, ['Investment account', 'Retirement', 'Cash reserve']],
+      [
+        'kind',
+        'Type',
+        'choice',
+        undefined,
+        ['Investment account', 'Retirement', 'Cash reserve'],
+      ],
       ['value', 'Value', 'currency'],
       ['change', 'Change', 'number', '%'],
     ]),

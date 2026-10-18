@@ -90,18 +90,22 @@ export function AppSidebar({
   )
   const groupsState = useApiResource<AreaGroup[]>(loadGroups, 'area-groups')
   const { setData: setSavedFilters } = savedState
+  const refreshAreasData = areasState.refresh
   useEffect(() => {
     const refreshSavedFilters = () => {
       void savedFiltersApi.list().then((filters) => setSavedFilters(filters))
     }
-    const refreshAreas = () => void areasState.refresh()
+    const refreshAreas = () => void refreshAreasData()
     window.addEventListener('hub:saved-filters-changed', refreshSavedFilters)
     window.addEventListener('hub:areas-changed', refreshAreas)
     return () => {
-      window.removeEventListener('hub:saved-filters-changed', refreshSavedFilters)
+      window.removeEventListener(
+        'hub:saved-filters-changed',
+        refreshSavedFilters,
+      )
       window.removeEventListener('hub:areas-changed', refreshAreas)
     }
-  }, [areasState.refresh, setSavedFilters])
+  }, [refreshAreasData, setSavedFilters])
   const areas = areasState.data ?? emptyAreas
   const saved = savedState.data ?? []
   const groups = groupsState.data ?? []
@@ -804,25 +808,54 @@ function AreaNav({
               menuOpensUp ? 'bottom-full mb-1' : 'top-8',
             )}
           >
-            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(onRename)}>Rename</button>
-            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(onPin)}>{area.pinned ? 'Unpin' : 'Pin'}</button>
+            <button
+              className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent"
+              onClick={() => action(onRename)}
+            >
+              Rename
+            </button>
+            <button
+              className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent"
+              onClick={() => action(onPin)}
+            >
+              {area.pinned ? 'Unpin' : 'Pin'}
+            </button>
             <label className="flex flex-col gap-1 px-3 py-2 text-xs text-muted-foreground">
               Move to group
               <Select
                 aria-label={`Move ${area.name} to group`}
                 value={area.groupId ?? ''}
-                onChange={(event) => action(() => onGroupChange(event.target.value))}
+                onChange={(event) =>
+                  action(() => onGroupChange(event.target.value))
+                }
                 className="h-8 w-full"
               >
                 <option value="">No group</option>
                 {groups.map((group) => (
-                  <option key={group.id} value={group.id}>{group.name}</option>
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
                 ))}
               </Select>
             </label>
-            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(() => onMove(-1))}>Move up</button>
-            <button className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent" onClick={() => action(() => onMove(1))}>Move down</button>
-            <button className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-sidebar-accent" onClick={() => action(onDelete)}>Delete</button>
+            <button
+              className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent"
+              onClick={() => action(() => onMove(-1))}
+            >
+              Move up
+            </button>
+            <button
+              className="rounded px-3 py-2 text-left text-sm hover:bg-sidebar-accent"
+              onClick={() => action(() => onMove(1))}
+            >
+              Move down
+            </button>
+            <button
+              className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-sidebar-accent"
+              onClick={() => action(onDelete)}
+            >
+              Delete
+            </button>
           </div>
         ) : null}
       </div>

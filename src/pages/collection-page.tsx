@@ -115,9 +115,15 @@ export function CollectionPage() {
       </Link>
       <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">{resource.data.area.name}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{collection.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{collection.description}</p>
+          <p className="text-xs text-muted-foreground">
+            {resource.data.area.name}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            {collection.name}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {collection.description}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setSchemaOpen(true)}>
@@ -149,7 +155,9 @@ export function CollectionPage() {
         >
           <option value="">All fields</option>
           {fields.map((field) => (
-            <option key={field.id} value={field.id}>{field.name}</option>
+            <option key={field.id} value={field.id}>
+              {field.name}
+            </option>
           ))}
         </Select>
         {filterField ? (
@@ -174,21 +182,35 @@ export function CollectionPage() {
                 <input
                   type="checkbox"
                   checked={shownFields.some((item) => item.id === field.id)}
-                  onChange={(event) => setVisibleFieldIds((current) => {
-                    const visible = current ?? fields
-                      .filter((item) => !(collection.id === 'purchases' && item.id === 'description'))
-                      .map((item) => item.id)
-                    return event.target.checked
-                      ? [...visible, field.id]
-                      : visible.filter((id) => id !== field.id)
-                  })}
+                  onChange={(event) =>
+                    setVisibleFieldIds((current) => {
+                      const visible =
+                        current ??
+                        fields
+                          .filter(
+                            (item) =>
+                              !(
+                                collection.id === 'purchases' &&
+                                item.id === 'description'
+                              ),
+                          )
+                          .map((item) => item.id)
+                      return event.target.checked
+                        ? [...visible, field.id]
+                        : visible.filter((id) => id !== field.id)
+                    })
+                  }
                 />
                 {field.name}
               </label>
             ))}
           </div>
         </details>
-        <div className="ml-auto flex flex-wrap items-center gap-1" role="group" aria-label="Collection display">
+        <div
+          className="ml-auto flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="Collection display"
+        >
           {(['table', 'cards', 'gallery', 'timeline'] as const).map((mode) => (
             <Button
               key={mode}
@@ -219,7 +241,11 @@ export function CollectionPage() {
               event.currentTarget.value = ''
             }}
           />
-          <Button variant="outline" size="sm" onClick={() => importRef.current?.click()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => importRef.current?.click()}
+          >
             <Upload />
             Import CSV
           </Button>
@@ -228,14 +254,22 @@ export function CollectionPage() {
             Export CSV
           </Button>
           {selectedIds.length ? (
-            <Button variant="destructive" size="sm" onClick={() => void removeItems(selectedIds)}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => void removeItems(selectedIds)}
+            >
               <Trash2 />
               Delete {selectedIds.length}
             </Button>
           ) : null}
         </div>
       </div>
-      {formError ? <p role="alert" className="mb-3 text-sm text-destructive">{formError}</p> : null}
+      {formError ? (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          {formError}
+        </p>
+      ) : null}
       {filteredItems.length ? (
         display === 'table' ? (
           <CollectionTable
@@ -246,47 +280,98 @@ export function CollectionPage() {
             sortDirection={sortDirection}
             columnWidths={columnWidths}
             onSort={toggleSort}
-            onResize={(fieldId, width) => void updateColumnWidth(fieldId, width)}
-            onSelect={(itemId, selected) => setSelectedIds((current) => selected
-              ? [...new Set([...current, itemId])]
-              : current.filter((id) => id !== itemId))}
-            onSelectAll={(selected) => setSelectedIds(selected ? filteredItems.map((item) => item.id) : [])}
+            onResize={(fieldId, width) =>
+              void updateColumnWidth(fieldId, width)
+            }
+            onSelect={(itemId, selected) =>
+              setSelectedIds((current) =>
+                selected
+                  ? [...new Set([...current, itemId])]
+                  : current.filter((id) => id !== itemId),
+              )
+            }
+            onSelectAll={(selected) =>
+              setSelectedIds(
+                selected ? filteredItems.map((item) => item.id) : [],
+              )
+            }
             onSave={updateItem}
             onDelete={(itemId) => void removeItems([itemId])}
           />
         ) : (
-          <EntryView mode={display as Exclude<DisplayMode, 'table'>} items={filteredItems} fields={shownFields} />
+          <EntryView
+            mode={display as Exclude<DisplayMode, 'table'>}
+            items={filteredItems}
+            fields={shownFields}
+          />
         )
       ) : (
         <EmptyState
           icon={query ? Search : Plus}
           title={query ? 'No matching items' : 'No items yet'}
-          message={query ? 'Try a different search.' : 'Add the first entry to this collection.'}
-          action={!query ? <Button onClick={() => setDialogOpen(true)}><Plus />Add item</Button> : null}
+          message={
+            query
+              ? 'Try a different search.'
+              : 'Add the first entry to this collection.'
+          }
+          action={
+            !query ? (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus />
+                Add item
+              </Button>
+            ) : null
+          }
         />
       )}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} title={`Add to ${collection.name}`}>
-        <DialogHeader title={`Add to ${collection.name}`} description="Enter the details for this item." />
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title={`Add to ${collection.name}`}
+      >
+        <DialogHeader
+          title={`Add to ${collection.name}`}
+          description="Enter the details for this item."
+        />
         <DialogBody className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto">
           {fields.map((field) => (
             <label key={field.id} className="flex flex-col gap-1.5 text-sm">
               <Label htmlFor={`new-${field.id}`}>{field.name}</Label>
               <FieldInput
                 field={field}
-                value={draft[field.id] ?? (field.type === 'date' ? localDateString() : '')}
-                onChange={(value) => setDraft((previous) => ({ ...previous, [field.id]: value }))}
+                value={
+                  draft[field.id] ??
+                  (field.type === 'date' ? localDateString() : '')
+                }
+                onChange={(value) =>
+                  setDraft((previous) => ({ ...previous, [field.id]: value }))
+                }
                 id={`new-${field.id}`}
               />
             </label>
           ))}
-          {formError ? <p role="alert" className="text-sm text-destructive">{formError}</p> : null}
+          {formError ? (
+            <p role="alert" className="text-sm text-destructive">
+              {formError}
+            </p>
+          ) : null}
         </DialogBody>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button disabled={saving} onClick={() => void addItem()}>{saving ? 'Saving' : 'Add item'}</Button>
+          <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button disabled={saving} onClick={() => void addItem()}>
+            {saving ? 'Saving' : 'Add item'}
+          </Button>
         </DialogFooter>
       </Dialog>
-      {schemaOpen ? <SchemaEditor collection={collection} onClose={() => setSchemaOpen(false)} onSave={saveSchema} /> : null}
+      {schemaOpen ? (
+        <SchemaEditor
+          collection={collection}
+          onClose={() => setSchemaOpen(false)}
+          onSave={saveSchema}
+        />
+      ) : null}
     </div>
   )
 }

@@ -139,11 +139,12 @@ export function AreasDashboardPage() {
     'areas-list-preferences',
   )
   const preferences = preferencesResource.data ?? defaultPreferences
+  const refreshAreasData = resource.refresh
   useEffect(() => {
-    const refreshAreas = () => void resource.refresh()
+    const refreshAreas = () => void refreshAreasData()
     window.addEventListener('hub:areas-changed', refreshAreas)
     return () => window.removeEventListener('hub:areas-changed', refreshAreas)
-  }, [resource.refresh])
+  }, [refreshAreasData])
   const [createOpen, setCreateOpen] = useState(false)
   const [startFrom, setStartFrom] = useState<AreaStartFrom | null>(null)
   const [name, setName] = useState('')

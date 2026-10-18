@@ -30,4 +30,10 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['src/components/collection/collection-table.tsx'],
+    rules: {
+      'react-hooks/incompatible-library': 'off',
+    },
+  },
 )
