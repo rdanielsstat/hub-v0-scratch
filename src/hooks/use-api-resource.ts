@@ -14,7 +14,23 @@ export function useApiResource<T>(loader: () => Promise<T>, key: string) {
     } finally {
       setLoading(false)
     }
+  }, [loader])
+  useEffect(() => {
+    let active = true
+    void loader()
+      .then((result) => {
+        if (active) {
+          setData(result)
+          setError(null)
+        }
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(caught instanceof Error ? caught : new Error('Unable to load data'))
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
   }, [loader, key])
-  useEffect(() => { void refresh() }, [refresh])
   return { data, error, loading, refresh, setData }
 }

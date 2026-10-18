@@ -25,11 +25,12 @@ export function AreaPage({ onCapture }: { onCapture: () => void }) {
   const loader = useCallback(() => loadArea(areaId), [areaId])
   const resource = useApiResource(loader, areaId)
   const data = resource.data
+  const { refresh: refreshAreaData } = resource
   useEffect(() => {
-    const refreshArea = () => void resource.refresh()
+    const refreshArea = () => void refreshAreaData()
     window.addEventListener('hub:area-items-changed', refreshArea)
     return () => window.removeEventListener('hub:area-items-changed', refreshArea)
-  }, [resource.refresh])
+  }, [refreshAreaData])
   const [pageId, setPageId] = useState('')
   const [customizing, setCustomizing] = useState(false)
   const [settingsBlock, setSettingsBlock] = useState<string | null>(null)
@@ -177,7 +178,10 @@ function SortableBlock({ block, data, customizing, onSave, onDelete, onDuplicate
   const view = block.type === 'view' ? block.view : null
   const collection = view ? data.collections.find((item) => item.id === view.collectionId) : block.type === 'collection' ? data.collections.find((item) => item.id === block.collectionId) : null
   const items = collection ? data.items.filter((item) => item.collectionId === collection.id) : []
+  // dnd-kit exposes these memoized bindings for DOM attachment; the refs lint rule misidentifies them as ref reads.
+  // eslint-disable-next-line react-hooks/refs -- dnd-kit requires these bindings on the sortable DOM node.
   return <div ref={sortable.setNodeRef} style={style} className={`min-w-0 ${block.size === 'wide' || block.size === 'full' ? 'md:col-span-full' : ''} ${block.size === 'tall' ? 'min-h-64' : ''}`} {...sortable.attributes}>
+    {/* eslint-disable-next-line react-hooks/refs -- dnd-kit provides these event handlers for the sortable drag handle. */}
     {customizing ? <div className="mb-1 flex flex-wrap items-center gap-1"><button type="button" {...sortable.listeners} aria-label={`Drag ${block.title ?? block.type}`} className="cursor-grab rounded border border-border px-2 py-1 text-xs text-muted-foreground">Move</button><Button variant="ghost" size="xs" onClick={() => void onMove(block, -1)}>Move up</Button><Button variant="ghost" size="xs" onClick={() => void onMove(block, 1)}>Move down</Button><Select aria-label={`Size ${block.title ?? block.type}`} value={block.size ?? 'medium'} onChange={(event) => void onSave({ ...block, size: event.target.value as BlockSize })} className="h-7 w-24"><option value="small">Small</option><option value="medium">Medium</option><option value="wide">Wide</option><option value="tall">Tall</option><option value="full">Full</option></Select><Button variant="ghost" size="xs" onClick={() => void onDuplicate(block)}>Duplicate</Button><Button variant="ghost" size="xs" onClick={() => void onDelete(block)}>Remove</Button>{view ? <Button variant="ghost" size="xs" onClick={() => onSettings(block.id)}>View settings</Button> : null}</div> : null}
     {customizing && block.type !== 'view' && block.type !== 'collection' && block.title ? <Input aria-label={`Block title ${block.title}`} defaultValue={block.title} onBlur={(event) => event.currentTarget.value !== block.title && void onSave({ ...block, title: event.currentTarget.value })} className="mb-2 h-8" /> : null}
     {customizing && (block.type === 'text' || block.type === 'heading' || block.type === 'callout') ? <Textarea aria-label={`Block content ${block.title ?? block.type}`} defaultValue={block.body} onBlur={(event) => event.currentTarget.value !== block.body && void onSave({ ...block, body: event.currentTarget.value })} className="mb-2" /> : null}
@@ -200,7 +204,7 @@ function ViewSettings({ block, collections, onClose, onSave }: { block?: Block; 
   const fields = collection?.fields ?? []
   const firstFilter = block.view.filter[0]
   function updateFilter(patch: Partial<NonNullable<typeof firstFilter>>) {
-    const next = firstFilter ? { ...firstFilter, ...patch } : { fieldId: patch.fieldId ?? fields[0]?.id ?? '', operator: patch.operator ?? 'isSet' as const, ...patch }
+    const next = Object.assign(firstFilter ? { ...firstFilter } : { fieldId: fields[0]?.id ?? '', operator: 'isSet' as const }, patch)
     update({ filter: next.fieldId ? [next] : [] })
   }
   return <aside aria-label="View settings" className="fixed inset-y-0 right-0 z-30 w-full max-w-sm overflow-y-auto border-l border-border bg-background p-5 shadow-xl">

@@ -50,9 +50,14 @@ function LineView({ groups }: RenderProps) {
 function specTitle(groups: ReturnType<typeof groupView>) { return groups.map((group) => group.name).join(', ') || 'Data' }
 function DonutView({ groups }: RenderProps) {
   const total = groups.reduce((sum, group) => sum + Math.max(0, Number(group.value) || 0), 0)
-  let offset = 0
   const colors = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)']
-  const segments = groups.map((group, index) => { const start = offset; offset += total ? Math.max(0, Number(group.value) || 0) / total * 100 : 0; return `${colors[index % colors.length]} ${start}% ${offset}%` })
+  const segments = groups.reduce<{ stops: string[]; offset: number }>((result, group, index) => {
+    const start = result.offset
+    const offset = start + (total ? Math.max(0, Number(group.value) || 0) / total * 100 : 0)
+    result.stops.push(`${colors[index % colors.length]} ${start}% ${offset}%`)
+    result.offset = offset
+    return result
+  }, { stops: [], offset: 0 }).stops
   return <div className="flex items-center gap-4"><div role="img" aria-label="Grouped values" className="size-28 shrink-0 rounded-full" style={{ background: `conic-gradient(${segments.join(', ')})` }} /><ul className="flex min-w-0 flex-col gap-1">{groups.map((group, index) => <li key={group.name} className="flex items-center gap-2 text-xs"><span className="size-2 rounded-full" style={{ background: colors[index % colors.length] }} /> <span className="truncate">{group.name}</span><span className="ml-auto tabular-nums">{format(group.value)}</span></li>)}</ul></div>
 }
 function TableView({ visibleItems, columns }: RenderProps) {

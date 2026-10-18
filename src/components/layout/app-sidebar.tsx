@@ -12,6 +12,7 @@ import { useStore } from '@/use-store'
 
 const icons: Record<string, typeof Archive> = { archive: Archive, wallet: Archive, activity: Activity, mountain: Mountain, sun: BookOpen }
 const sorts: ProjectFilterState['sort'][] = ['updated', 'opportunity', 'excitement', 'effort', 'target', 'name']
+const emptyAreas: Area[] = []
 function projectHref(filter: ProjectFilterState) {
   const query = new URLSearchParams()
   if (filter.status !== 'all') query.set('status', filter.status)
@@ -24,19 +25,20 @@ function projectHref(filter: ProjectFilterState) {
 export function AppSidebar({ open = true, mobile = false, onClose }: { open?: boolean; mobile?: boolean; onClose?: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { projects } = useStore()
+  const { projects, loading: projectsLoading, error: projectsError } = useStore()
   const loadAreas = useCallback(() => areasApi.listAreas(), [])
   const loadSaved = useCallback(() => savedFiltersApi.list(), [])
   const loadGroups = useCallback(() => areaLayoutApi.listGroups(), [])
   const areasState = useApiResource<Area[]>(loadAreas, 'areas')
   const savedState = useApiResource<SavedProjectFilter[]>(loadSaved, 'saved-filters')
   const groupsState = useApiResource<AreaGroup[]>(loadGroups, 'area-groups')
+  const { setData: setSavedFilters } = savedState
   useEffect(() => {
-    const refreshSavedFilters = () => { void savedFiltersApi.list().then((filters) => savedState.setData(filters)) }
+    const refreshSavedFilters = () => { void savedFiltersApi.list().then((filters) => setSavedFilters(filters)) }
     window.addEventListener('hub:saved-filters-changed', refreshSavedFilters)
     return () => window.removeEventListener('hub:saved-filters-changed', refreshSavedFilters)
-  }, [savedState.setData])
-  const areas = areasState.data ?? []
+  }, [setSavedFilters])
+  const areas = areasState.data ?? emptyAreas
   const saved = savedState.data ?? []
   const groups = groupsState.data ?? []
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -127,8 +129,7 @@ export function AppSidebar({ open = true, mobile = false, onClose }: { open?: bo
       <div className="flex items-center justify-between px-4 pb-2 pt-4"><span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Workspace</span>{mobile ? <Button variant="ghost" size="icon-sm" aria-label="Close navigation" onClick={onClose}><X /></Button> : null}</div>
       <nav aria-label="Workspace" className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
         <Section title="Projects" collapsed={collapsed.Projects} onToggle={() => setCollapsed((value) => ({ ...value, Projects: !value.Projects }))}>
-          <NavLine href="/" label="All projects" count={projects.length} active={location.pathname === '/' && !params.has('status')} onClick={onClose} />
-          {STATUSES.map((item) => <NavLine key={item} href={projectHref({ status: item, tag: null, q: '', sort: 'updated' })} label={item} count={statusFor(item)} active={currentHref === projectHref({ status: item, tag: null, q: '', sort: 'updated' })} onClick={onClose} />)}
+          {projectsLoading ? <p className="px-2 py-2 text-xs text-muted-foreground">Loading projects</p> : projectsError ? <p role="alert" className="px-2 py-2 text-xs text-destructive">Could not load project counts</p> : <><NavLine href="/" label="All projects" count={projects.length} active={location.pathname === '/' && !params.has('status') && !params.has('tag') && !params.has('q') && !params.has('sort')} onClick={onClose} />{STATUSES.map((item) => <NavLine key={item} href={projectHref({ status: item, tag: null, q: '', sort: 'updated' })} label={item} count={statusFor(item)} active={currentHref === projectHref({ status: item, tag: null, q: '', sort: 'updated' })} onClick={onClose} />)}</>}
         </Section>
         <Section title="Saved filters" collapsed={collapsed.Saved} onToggle={() => setCollapsed((value) => ({ ...value, Saved: !value.Saved }))} action={<button type="button" aria-label="Save current filter" title="Save current filter" onClick={() => void saveFilter()} className="rounded p-1 text-muted-foreground hover:bg-sidebar-accent"><Plus className="size-3.5" /></button>}>
           {savedState.loading ? <p className="px-2 py-2 text-xs text-muted-foreground">Loading saved filters</p> : savedState.error ? <p role="alert" className="px-2 py-2 text-xs text-destructive">Could not load saved filters</p> : saved.length ? saved.map((filter) => <div key={filter.id} className="group flex items-center gap-1"><Link to={projectHref(filter)} onClick={onClose} className="min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground">{filter.name}</Link><div className="hidden group-hover:flex group-focus-within:flex"><button aria-label={`Move ${filter.name} up`} onClick={() => void reorderSaved(filter.id, -1)} className="px-1 text-xs">↑</button><button aria-label={`Move ${filter.name} down`} onClick={() => void reorderSaved(filter.id, 1)} className="px-1 text-xs">↓</button><button aria-label={`Rename ${filter.name}`} onClick={() => void renameFilter(filter)} className="px-1 text-xs">···</button><button aria-label={`Delete ${filter.name}`} onClick={() => void deleteFilter(filter.id)} className="px-1 text-xs">×</button></div></div>) : <p className="px-2 py-2 text-xs text-muted-foreground">No saved filters</p>}
