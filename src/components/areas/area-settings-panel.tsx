@@ -6,7 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 
-const areaEmojiOptions = ['📚', '🌿', '🏠', '💰', '🏃', '🧭', '🎨', '✨', '☀️', '🎵']
+const areaEmojiOptions = [
+  '📚',
+  '🌿',
+  '🏠',
+  '💰',
+  '🏃',
+  '🧭',
+  '🎨',
+  '✨',
+  '☀️',
+  '🎵',
+]
 
 export function AreaSettingsPanel({
   area,
@@ -28,7 +39,12 @@ export function AreaSettingsPanel({
           <p className="text-xs text-muted-foreground">Customize this space</p>
           <h2 className="font-semibold">Area settings</h2>
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="Close area settings" onClick={onClose}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close area settings"
+          onClick={onClose}
+        >
           <X />
         </Button>
       </div>
@@ -38,20 +54,46 @@ export function AreaSettingsPanel({
           <Input
             aria-label="Area name"
             defaultValue={area.name}
-            onBlur={(event) => event.currentTarget.value !== area.name && void onSave({ name: event.currentTarget.value })}
+            onBlur={(event) =>
+              event.currentTarget.value !== area.name &&
+              void onSave({ name: event.currentTarget.value })
+            }
           />
         </label>
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium">Icon</legend>
-          <button type="button" aria-pressed={!area.icon} onClick={() => void onSave({ icon: '' })} className="w-fit rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted">No icon</button>
+          <button
+            type="button"
+            aria-pressed={!area.icon}
+            onClick={() => void onSave({ icon: '' })}
+            className="w-fit rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            No icon
+          </button>
           <div className="grid grid-cols-8 gap-1" aria-label="Emoji icons">
             {areaEmojiOptions.map((emoji) => (
-              <button type="button" key={emoji} aria-label={`Use ${emoji} icon`} aria-pressed={area.icon === emoji} onClick={() => void onSave({ icon: emoji })} className="grid size-9 place-items-center rounded-md border border-border text-lg hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary/10">{emoji}</button>
+              <button
+                type="button"
+                key={emoji}
+                aria-label={`Use ${emoji} icon`}
+                aria-pressed={area.icon === emoji}
+                onClick={() => void onSave({ icon: emoji })}
+                className="grid size-9 place-items-center rounded-md border border-border text-lg hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary/10"
+              >
+                {emoji}
+              </button>
             ))}
           </div>
           <div className="grid grid-cols-8 gap-1">
             {areaIconOptions.map(({ name, icon: Icon }) => (
-              <button type="button" key={name} aria-label={`Use ${name} icon`} aria-pressed={area.icon === name} onClick={() => void onSave({ icon: name })} className="grid size-9 place-items-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary">
+              <button
+                type="button"
+                key={name}
+                aria-label={`Use ${name} icon`}
+                aria-pressed={area.icon === name}
+                onClick={() => void onSave({ icon: name })}
+                className="grid size-9 place-items-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary"
+              >
                 <Icon aria-hidden="true" className="size-4" />
               </button>
             ))}
@@ -62,7 +104,10 @@ export function AreaSettingsPanel({
           <Textarea
             aria-label="Area description"
             defaultValue={area.description}
-            onBlur={(event) => event.currentTarget.value !== area.description && void onSave({ description: event.currentTarget.value })}
+            onBlur={(event) =>
+              event.currentTarget.value !== area.description &&
+              void onSave({ description: event.currentTarget.value })
+            }
           />
         </label>
       </div>

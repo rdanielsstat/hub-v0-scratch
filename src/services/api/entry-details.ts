@@ -96,7 +96,10 @@ export const entryDetailsApi = {
     const subItem = detail.subItems.find((item) => item.id === subItemId)
     if (subItem) {
       subItem.completed = completed
-      record(detail, `${completed ? 'Completed' : 'Reopened'} sub-item: ${subItem.title}`)
+      record(
+        detail,
+        `${completed ? 'Completed' : 'Reopened'} sub-item: ${subItem.title}`,
+      )
     }
     return structuredClone(detail)
   },

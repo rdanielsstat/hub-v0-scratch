@@ -95,7 +95,7 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
 
   const shownFields = fields.filter((field) =>
     visibleFieldIds === null
-      ? !(collection?.id === 'purchases' && field.id === 'description')
+      ? !field.hiddenByDefault
       : visibleFieldIds.includes(field.id),
   )
 
@@ -237,7 +237,9 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
     deletedItemsRef.current = []
     await collectionsApi.restoreItems(restored)
     resource.setData((previous) =>
-      previous ? { ...previous, items: [...restored, ...previous.items] } : previous,
+      previous
+        ? { ...previous, items: [...restored, ...previous.items] }
+        : previous,
     )
   }
 
@@ -270,7 +272,9 @@ export function useCollectionPageState(areaId: string, collectionId: string) {
       previous
         ? {
             ...previous,
-            items: previous.items.map((item) => item.id === id ? updated : item),
+            items: previous.items.map((item) =>
+              item.id === id ? updated : item,
+            ),
           }
         : previous,
     )

@@ -7,7 +7,10 @@ export function useEntryDetails(itemId: string) {
     () => (itemId ? entryDetailsApi.get(itemId) : Promise.resolve(null)),
     [itemId],
   )
-  const resource = useApiResource<EntryDetail | null>(loader, itemId || 'no-entry')
+  const resource = useApiResource<EntryDetail | null>(
+    loader,
+    itemId || 'no-entry',
+  )
 
   const update = async (operation: () => Promise<EntryDetail>) => {
     const next = await operation()
@@ -21,12 +24,15 @@ export function useEntryDetails(itemId: string) {
     addNote: (text: string) =>
       update(() => entryDetailsApi.addNote(itemId, text)),
     addSubItem: (title: string, subItemId?: string, dueDate?: string) =>
-      update(() => entryDetailsApi.addSubItem(itemId, title, subItemId, dueDate)),
+      update(() =>
+        entryDetailsApi.addSubItem(itemId, title, subItemId, dueDate),
+      ),
     updateSubItem: (subItemId: string, completed: boolean) =>
       update(() => entryDetailsApi.updateSubItem(itemId, subItemId, completed)),
     addFile: (file: Parameters<typeof entryDetailsApi.addFile>[1]) =>
       update(() => entryDetailsApi.addFile(itemId, file)),
-    addLink: (url: string) => update(() => entryDetailsApi.addLink(itemId, url)),
+    addLink: (url: string) =>
+      update(() => entryDetailsApi.addLink(itemId, url)),
     recordChange: (text: string) =>
       update(() => entryDetailsApi.recordChange(itemId, text)),
   }

@@ -190,7 +190,11 @@ export const mockCollections: CollectionSchema[] = [
       ['date', 'Date', 'date'],
       ['payment', 'Payment', 'choice', undefined, ['Card', 'Checking', 'Cash']],
       ['reference', 'Related item', 'reference'],
-    ]),
+    ]).map((field) =>
+      // Purchases keep a description, but the table reads better without it.
+      field.id === 'description' ? { ...field, hiddenByDefault: true } : field,
+    ),
+    flow: 'outgoing',
     createdAt: stamp(180),
     updatedAt: stamp(0),
   },
@@ -204,6 +208,7 @@ export const mockCollections: CollectionSchema[] = [
       ['amount', 'Amount', 'currency'],
       ['date', 'Date', 'date'],
     ]),
+    flow: 'incoming',
     createdAt: stamp(180),
     updatedAt: stamp(0),
   },
@@ -320,7 +325,7 @@ const inventoryItems: Item[] = [
       serial: 'N-2048117',
       purchaseDate: '2024-05-18',
       amount: 820,
-      warrantyEnds: '2026-12-14',
+      warrantyEnds: localDateAfter(57),
       location: 'Studio shelf',
       photo: '/areas/inventory-camera.webp',
     },
@@ -339,7 +344,7 @@ const inventoryItems: Item[] = [
       serial: 'HH-88420',
       purchaseDate: '2023-11-09',
       amount: 1250,
-      warrantyEnds: '2026-11-22',
+      warrantyEnds: localDateAfter(35),
       location: 'Living room',
       photo: '/areas/inventory-chair.webp',
     },
@@ -358,7 +363,7 @@ const inventoryItems: Item[] = [
       serial: 'JM-41028',
       purchaseDate: '2025-03-04',
       amount: 690,
-      warrantyEnds: '2026-12-03',
+      warrantyEnds: localDateAfter(46),
       location: 'Bedroom dresser',
       photo: '/areas/inventory-watch.webp',
     },
@@ -377,7 +382,7 @@ const inventoryItems: Item[] = [
       serial: 'AC-743991',
       purchaseDate: '2022-06-12',
       amount: 1800,
-      warrantyEnds: '2027-06-12',
+      warrantyEnds: localDateAfter(237),
       location: 'Garage',
       photo: '/areas/inventory-bike.webp',
     },
@@ -386,54 +391,97 @@ const inventoryItems: Item[] = [
   },
 ]
 
-const additionalInventoryItems: Item[] = Array.from(
-  { length: 21 },
-  (_, index) => {
-    const base = inventoryItems[index % inventoryItems.length]
-    const titles = [
-      'Ceramic table lamp',
-      'Leather weekender',
-      'Oak bookshelf',
-      'Field binoculars',
-      'Wool throw',
-      'Desk microphone',
-      'Travel tripod',
-      'Stoneware set',
-      'Canvas daypack',
-      'Floor mirror',
-      'Garden shears',
-      'Portable speaker',
-      'Reading glasses',
-      'Coffee grinder',
-      'Drawing tablet',
-      'Linen duvet',
-      'Tool chest',
-      'Studio headphones',
-      'Camping stove',
-      'Mechanical keyboard',
-      'Porcelain vase',
-    ]
-    const title = titles[index]
-    return {
-      ...structuredClone(base),
-      id: `inventory-extra-${index + 1}`,
-      title,
-      data: {
-        ...Object.fromEntries(
-          Object.entries(base.data).filter(([fieldId]) => fieldId !== 'photo'),
-        ),
-        make: ['Field Notes', 'Northline', 'Hearth & Hand', 'All-City'][
-          index % 4
-        ],
-        model: title,
-        serial: `HN-${204900 + index}`,
-        location: ['Studio', 'Living room', 'Hall closet', 'Garage'][index % 4],
-      },
-      createdAt: stamp(40 + index * 7),
-      updatedAt: stamp(index + 1),
-    }
-  },
+// [title, make, model, location, price, bought (days ago), warranty (days left; negative = expired)]
+const extraInventory: Array<
+  [string, string, string, string, number, number, number]
+> = [
+  [
+    'Ceramic table lamp',
+    'Hearth & Hand',
+    'Dune lamp',
+    'Living room',
+    129,
+    410,
+    -45,
+  ],
+  [
+    'Leather weekender',
+    'Northline',
+    'Weekender 48',
+    'Hall closet',
+    340,
+    620,
+    480,
+  ],
+  [
+    'Oak bookshelf',
+    'Field & Oak',
+    'Ladder shelf',
+    'Living room',
+    410,
+    900,
+    -200,
+  ],
+  [
+    'Field binoculars',
+    'Lumen Optics',
+    '8x42 Trail',
+    'Hall closet',
+    289,
+    300,
+    62,
+  ],
+  ['Wool throw', 'Hearth & Hand', 'Merino throw', 'Bedroom', 98, 120, -10],
+  ['Desk microphone', 'Clearwave', 'CW-1 USB', 'Studio', 149, 210, 21],
+  ['Travel tripod', 'Peakline', 'Carbon 4', 'Studio', 230, 480, 250],
+  ['Stoneware set', 'Kiln & Co', 'Service for 6', 'Kitchen', 175, 700, -300],
+  ['Canvas daypack', 'All-City', 'Commuter 22L', 'Hall closet', 120, 260, 105],
+  ['Floor mirror', 'Field & Oak', 'Arched 65"', 'Bedroom', 260, 150, 580],
+  ['Garden shears', 'Rootwork', 'Bypass pruner', 'Garage', 46, 95, 270],
+  ['Portable speaker', 'Clearwave', 'Go Mini', 'Kitchen', 89, 330, 35],
+  ['Reading glasses', 'Lumen Optics', 'Classic +1.5', 'Bedroom', 64, 60, 300],
+  ['Coffee grinder', 'Kiln & Co', 'Burr 40', 'Kitchen', 199, 380, 74],
+  ['Drawing tablet', 'Pixelpad', 'Pro 13', 'Studio', 649, 240, 490],
+  [
+    'Linen duvet',
+    'Hearth & Hand',
+    'Stonewashed queen',
+    'Bedroom',
+    220,
+    180,
+    -5,
+  ],
+  ['Tool chest', 'Rootwork', 'Rolling 7-drawer', 'Garage', 380, 1100, 900],
+  ['Studio headphones', 'Clearwave', 'Monitor 70', 'Studio', 179, 400, 13],
+  ['Camping stove', 'Peakline', 'Twin burner', 'Garage', 135, 520, 210],
+  ['Mechanical keyboard', 'Pixelpad', 'Low profile 75', 'Studio', 159, 90, 640],
+  ['Porcelain vase', 'Kiln & Co', 'Tall bud vase', 'Living room', 58, 45, -1],
+]
+
+const additionalInventoryItems: Item[] = extraInventory.map(
+  ([title, make, model, location, amount, bought, warrantyLeft], index) => ({
+    id: `inventory-extra-${index + 1}`,
+    areaId: 'personal-inventory',
+    collectionId: 'inventory',
+    title,
+    type: 'inventory',
+    data: {
+      make,
+      model,
+      serial: `${make.slice(0, 2).toUpperCase()}-${204900 + index * 37}`,
+      purchaseDate: localDateAfter(-bought),
+      amount,
+      warrantyEnds: localDateAfter(warrantyLeft),
+      location,
+    },
+    createdAt: stamp(bought),
+    updatedAt: stamp(index + 1),
+  }),
 )
+
+/** Days ago that still falls in the current month (the 1st, 3rd, 5th, ...). */
+const thisMonth = (index: number) =>
+  Math.max(0, new Date().getDate() - 1 - index * 2)
 
 const financeItems: Item[] = [
   ...[
@@ -447,14 +495,14 @@ const financeItems: Item[] = [
     collectionId: 'income',
     title: String(source),
     type: 'income',
-    occurredAt: stamp(index),
+    occurredAt: stamp(thisMonth(index)),
     data: {
       source: String(source),
       amount: Number(amount),
-      date: stamp(index).slice(0, 10),
+      date: stamp(thisMonth(index)).slice(0, 10),
     },
-    createdAt: stamp(index),
-    updatedAt: stamp(index),
+    createdAt: stamp(thisMonth(index)),
+    updatedAt: stamp(thisMonth(index)),
   })),
   ...[
     ['Quarterly estimate', 900],
@@ -466,70 +514,159 @@ const financeItems: Item[] = [
     collectionId: 'taxes',
     title: String(source),
     type: 'tax',
-    occurredAt: stamp(index),
+    occurredAt: stamp(thisMonth(index)),
     data: {
       source: String(source),
       amount: Number(amount),
-      date: stamp(index).slice(0, 10),
+      date: stamp(thisMonth(index)).slice(0, 10),
     },
-    createdAt: stamp(index),
-    updatedAt: stamp(index),
+    createdAt: stamp(thisMonth(index)),
+    updatedAt: stamp(thisMonth(index)),
   })),
 ]
 
-const purchaseSeeds = [
-  { category: 'Groceries', merchant: 'Market Basket' },
-  { category: 'Dining', merchant: 'Corner Table' },
-  { category: 'Transport', merchant: 'City Transit' },
-  { category: 'Personal', merchant: 'Northline Books' },
-  { category: 'Utilities', merchant: 'Bright Electric' },
-  { category: 'Personal', merchant: 'Field Supply' },
-  { category: 'Health', merchant: 'Willow Pharmacy' },
-  { category: 'Home', merchant: 'Studio Goods' },
+// Each category: merchants, [title, description] pairs, and a typical amount range.
+const purchaseCatalog: Array<{
+  category: string
+  weight: number
+  merchants: string[]
+  entries: Array<[string, string]>
+  range: [number, number]
+}> = [
+  {
+    category: 'Groceries',
+    weight: 9,
+    merchants: ['Market Basket', 'Green Grocer', 'Corner Market'],
+    entries: [
+      ['Weekly pantry restock', 'Produce, dairy, and pantry staples'],
+      ['Big grocery run', 'Stocking up for the month'],
+      ['Bread and fruit', 'A quick stop on the way home'],
+    ],
+    range: [14, 185],
+  },
+  {
+    category: 'Dining',
+    weight: 6,
+    merchants: ['Corner Table', 'Noodle House', 'Harbor Cafe'],
+    entries: [
+      ['Lunch with a friend', 'Catching up over lunch'],
+      ['Takeout dinner', 'Too tired to cook'],
+      ['Coffee and pastry', 'Morning treat'],
+    ],
+    range: [6, 88],
+  },
+  {
+    category: 'Transport',
+    weight: 5,
+    merchants: ['City Transit', 'Fuel Stop', 'Park & Go'],
+    entries: [
+      ['Transit pass reload', 'Monthly fare card top-up'],
+      ['Fuel', 'Full tank'],
+      ['Parking downtown', 'Two hours near the office'],
+    ],
+    range: [3, 75],
+  },
+  {
+    category: 'Personal',
+    weight: 3,
+    merchants: ['Northline Books', 'Field Supply', 'Studio Goods'],
+    entries: [
+      ['A new field notebook', 'Dot grid, pocket size'],
+      ['Paperback for the trip', 'Something to read on the train'],
+      ['Haircut', 'Every six weeks'],
+    ],
+    range: [9, 65],
+  },
+  {
+    category: 'Health',
+    weight: 2,
+    merchants: ['Willow Pharmacy', 'Northside Clinic'],
+    entries: [
+      ['Pharmacy essentials', 'Vitamins and first aid restock'],
+      ['Prescription refill', '90-day supply'],
+    ],
+    range: [8, 95],
+  },
+  {
+    category: 'Home',
+    weight: 3,
+    merchants: ['Studio Goods', 'Hardware Depot', 'Weekend Market'],
+    entries: [
+      ['Hardware for the studio', 'Hooks, anchors, and a level'],
+      ['Weekend market flowers', 'Tulips for the table'],
+      ['Cleaning supplies', 'Restocking under the sink'],
+    ],
+    range: [12, 240],
+  },
+  {
+    category: 'Utilities',
+    weight: 1,
+    merchants: ['Bright Electric', 'City Water', 'Fiberline Internet'],
+    entries: [
+      ['Utility bill payment', 'Monthly bill'],
+      ['Internet bill', 'Monthly plan'],
+    ],
+    range: [45, 210],
+  },
 ]
+
+/** Small seeded random number generator, so the demo data is the same on every load. */
+function seededRandom(seed: number) {
+  let state = seed
+  return () => {
+    state = (state + 0x6d2b79f5) | 0
+    let t = Math.imul(state ^ (state >>> 15), 1 | state)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const purchaseRandom = seededRandom(20261018)
+const totalWeight = purchaseCatalog.reduce(
+  (sum, entry) => sum + entry.weight,
+  0,
+)
+const pickCategory = (roll: number) => {
+  let left = roll * totalWeight
+  for (const entry of purchaseCatalog) {
+    left -= entry.weight
+    if (left < 0) return entry
+  }
+  return purchaseCatalog[0]
+}
+const pick = <T>(list: T[]) => list[Math.floor(purchaseRandom() * list.length)]
 
 export const mockItems: Item[] = [
   ...inventoryItems,
   ...additionalInventoryItems,
   ...financeItems,
   ...Array.from({ length: 2000 }, (_, index): Item => {
-    const daysAgo = index % 365
+    // About five purchases a day over the past year, newest first. The first
+    // one is always a grocery run, which the collection tests rely on.
+    const daysAgo = Math.floor((index * 365) / 2000)
     const date = stamp(daysAgo)
-    const purchaseSeed = purchaseSeeds[index % purchaseSeeds.length]
+    const entry =
+      index === 0 ? purchaseCatalog[0] : pickCategory(purchaseRandom())
+    const merchant = index === 0 ? entry.merchants[0] : pick(entry.merchants)
+    const [title, description] =
+      index === 0 ? entry.entries[0] : pick(entry.entries)
+    const [low, high] = entry.range
     const amount =
-      Math.round((18 + ((index * 37) % 280) + (index % 4) * 0.75) * 100) / 100
+      Math.round((low + purchaseRandom() * (high - low)) * 100) / 100
     return {
       id: `purchase-${String(index + 1).padStart(4, '0')}`,
       areaId: 'home-budget',
       collectionId: 'purchases',
-      title: [
-        'Weekly pantry restock',
-        'Lunch with a friend',
-        'Transit pass reload',
-        'A new field notebook',
-        'Utility bill payment',
-        'Weekend market flowers',
-        'Pharmacy essentials',
-        'Hardware for the studio',
-      ][index % 8],
+      title,
       type: 'purchase',
       occurredAt: date,
       data: {
-        merchant: purchaseSeed.merchant,
-        description: [
-          'Weekly pantry restock',
-          'Lunch with a friend',
-          'Transit pass reload',
-          'A new field notebook',
-          'Utility bill payment',
-          'Weekend market flowers',
-          'Pharmacy essentials',
-          'Hardware for the studio',
-        ][index % 8],
-        category: purchaseSeed.category,
+        merchant,
+        description,
+        category: entry.category,
         amount,
         date: date.slice(0, 10),
-        payment: ['Card', 'Checking', 'Cash'][index % 3],
+        payment: pick(['Card', 'Card', 'Card', 'Checking', 'Cash']),
         ...(index % 113 === 0
           ? {
               reference: {
@@ -884,8 +1021,16 @@ export const mockBlocks: Block[] = [
       collectionId: 'inventory',
       display: 'table',
       filter: [
-        { fieldId: 'warrantyEnds', operator: 'greaterThan', value: localDateAfter(0) },
-        { fieldId: 'warrantyEnds', operator: 'lessThan', value: localDateAfter(90) },
+        {
+          fieldId: 'warrantyEnds',
+          operator: 'greaterThan',
+          value: localDateAfter(0),
+        },
+        {
+          fieldId: 'warrantyEnds',
+          operator: 'lessThan',
+          value: localDateAfter(90),
+        },
       ],
       sort: { fieldId: 'warrantyEnds', direction: 'asc' },
       limit: 8,

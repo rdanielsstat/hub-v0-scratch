@@ -4,11 +4,11 @@ import {
   BarChart3,
   ExternalLink,
   Image as ImageIcon,
-  MoreHorizontal,
   Table2,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type {
+  CollectionSchema,
   FieldDef,
   Item,
   ItemValue,
@@ -26,6 +26,8 @@ interface Props {
   spec: ViewSpec
   items: Item[]
   fields: FieldDef[]
+  /** The collection's money direction, for signing and coloring currency totals. */
+  flow?: CollectionSchema['flow']
   onChangeSpec?: (spec: ViewSpec) => void
   showTitle?: boolean
   plain?: boolean
@@ -43,6 +45,7 @@ export function ViewRenderer({
   spec,
   items,
   fields,
+  flow,
   onChangeSpec,
   showTitle = true,
   plain = false,
@@ -70,13 +73,14 @@ export function ViewRenderer({
   }
   const Renderer = renderers[effectiveDisplay]
   const areaId = items[0]?.areaId
-  const chartDisplay: 'line' | 'bar' | 'donut' =
-    spec.display === 'table'
-      ? (spec.chartType ?? 'line')
-      : spec.display === 'bar' || spec.display === 'donut'
-        ? spec.display
-        : 'line'
-  const canToggleChart = ['line', 'bar', 'donut'].includes(chartDisplay)
+  const chartKinds = ['line', 'bar', 'donut'] as const
+  const asChart = chartKinds.find((kind) => kind === spec.display)
+  const isChart = asChart !== undefined
+  const chartDisplay = asChart ?? spec.chartType ?? 'line'
+  // Only charts (or a chart switched to its table) can flip between the two;
+  // a single number or a list has nothing to chart.
+  const canToggleChart =
+    isChart || (spec.display === 'table' && !!spec.chartType)
   const setDisplay = (display: ViewDisplay) =>
     onChangeSpec?.({
       ...spec,
@@ -98,7 +102,11 @@ export function ViewRenderer({
           ) : null}
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {canToggleChart && onChangeSpec ? (
-              <div role="group" aria-label={`${spec.title} display`} className="flex">
+              <div
+                role="group"
+                aria-label={`${spec.title} display`}
+                className="flex"
+              >
                 <button
                   type="button"
                   aria-label={`${spec.title} chart view`}
@@ -129,22 +137,6 @@ export function ViewRenderer({
                 <ExternalLink aria-hidden="true" />
               </Link>
             ) : null}
-            <details className="relative">
-              <summary
-                aria-label={`${spec.title} options`}
-                className="grid size-7 cursor-pointer list-none place-items-center rounded text-muted-foreground hover:bg-muted"
-              >
-                <MoreHorizontal aria-hidden="true" />
-              </summary>
-              {areaId ? (
-                <Link
-                  to={`/area/${areaId}/collection/${spec.collectionId}`}
-                  className="absolute right-0 top-8 z-20 whitespace-nowrap rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-lg"
-                >
-                  Open collection
-                </Link>
-              ) : null}
-            </details>
           </div>
         </div>
       </header>
@@ -152,6 +144,7 @@ export function ViewRenderer({
         spec={{ ...spec, display: effectiveDisplay }}
         items={items}
         fields={fields}
+        flow={flow}
         visibleItems={visibleItems}
         aggregate={aggregate}
         groups={groups}
@@ -164,7 +157,8 @@ export function ViewRenderer({
           onChange={(event) =>
             onChangeSpec({ ...spec, period: event.target.value as ViewPeriod })
           }
-          className="mt-2 h-7 w-fit min-w-0 border-0 bg-transparent pl-1 pr-7 text-xs text-muted-foreground focus-visible:ring-1"
+          containerClassName="mt-2 w-fit"
+          className="h-7 w-auto min-w-0 border-0 bg-transparent pl-1 pr-7 text-xs text-muted-foreground focus-visible:ring-1"
         >
           {Object.entries(periodLabels).map(([value, label]) => (
             <option key={value} value={value}>
@@ -184,23 +178,41 @@ type RenderProps = Props & {
   columns: FieldDef[]
 }
 
-function StatView({ spec, aggregate, fields }: RenderProps) {
+const currencyParts = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+function StatView({ aggregate, fields, spec, flow }: RenderProps) {
   const field = fields.find((item) => item.id === spec.aggregate?.fieldId)
-  const isIncoming = spec.collectionId === 'income'
-  const isOutgoing = spec.collectionId === 'purchases'
   if (field?.type === 'currency' && typeof aggregate === 'number') {
-    const absolute = Math.abs(aggregate).toFixed(2).split('.')
+    // "$28,180" with the cents set apart, so they can sit smaller and raised.
+    const parts = currencyParts.formatToParts(Math.abs(aggregate))
+    const whole = parts
+      .filter((part) => part.type !== 'decimal' && part.type !== 'fraction')
+      .map((part) => part.value)
+      .join('')
+    const cents = parts.find((part) => part.type === 'fraction')?.value ?? '00'
+    const sign = flow === 'outgoing' ? '−' : flow === 'incoming' ? '+' : ''
     return (
       <p
-        className={`w-full text-right text-3xl font-semibold tracking-tight tabular-nums ${isIncoming ? 'text-emerald-700 dark:text-emerald-400' : ''}`}
+        className={`text-3xl font-semibold tracking-tight tabular-nums ${flow === 'incoming' ? 'text-emerald-700 dark:text-emerald-400' : ''}`}
       >
-        {isOutgoing ? '−' : isIncoming ? '+' : ''}${absolute[0]}
-        <sup className="ml-0.5 align-super text-sm font-medium">.{absolute[1]}</sup>
+        <span className="sr-only">
+          {currencyParts.format(flow === 'outgoing' ? -aggregate : aggregate)}
+        </span>
+        <span aria-hidden="true">
+          {sign}
+          {whole}
+          <sup className="ml-0.5 align-super text-sm font-medium">.{cents}</sup>
+        </span>
       </p>
     )
   }
   return (
-    <p className="w-full text-right text-3xl font-semibold tracking-tight tabular-nums">
+    <p className="text-3xl font-semibold tracking-tight tabular-nums">
       <FieldValue value={aggregate as ItemValue} field={field} />
     </p>
   )
@@ -333,11 +345,7 @@ function GalleryView({ visibleItems, columns }: RenderProps) {
           >
             <div className="grid aspect-[4/3] place-items-center bg-muted">
               {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={item.title}
-                  className="size-full object-cover"
-                />
+                <img src={imageUrl} alt="" className="size-full object-cover" />
               ) : (
                 <div className="flex flex-col items-center gap-2 px-3 text-center text-xs text-muted-foreground">
                   <ImageIcon aria-hidden="true" className="size-8 opacity-50" />

@@ -37,7 +37,9 @@ export function PageCustomizeMenu({
                 <input
                   type="checkbox"
                   checked={!hiddenBlockIds.includes(block.id)}
-                  onChange={(event) => onToggleBlock(block, event.target.checked)}
+                  onChange={(event) =>
+                    onToggleBlock(block, event.target.checked)
+                  }
                 />
                 <span className="min-w-0 flex-1 break-words">
                   {title || block.type}
@@ -51,7 +53,11 @@ export function PageCustomizeMenu({
           </p>
         )}
       </div>
-      <Button variant="ghost" className="justify-start" onClick={onOpenSettings}>
+      <Button
+        variant="ghost"
+        className="justify-start"
+        onClick={onOpenSettings}
+      >
         Page settings
       </Button>
       <Button variant="outline" onClick={onEditLayout}>
@@ -102,7 +108,9 @@ export function PageSettingsPanel({
             aria-label="Page layout"
             value={settings.layout}
             onChange={(event) =>
-              update({ layout: event.target.value as AreaPageSettings['layout'] })
+              update({
+                layout: event.target.value as AreaPageSettings['layout'],
+              })
             }
           >
             <option value="oneColumn">One column</option>
@@ -130,7 +138,9 @@ export function PageSettingsPanel({
             aria-label="Page density"
             value={settings.density}
             onChange={(event) =>
-              update({ density: event.target.value as AreaPageSettings['density'] })
+              update({
+                density: event.target.value as AreaPageSettings['density'],
+              })
             }
           >
             <option value="comfortable">Comfortable</option>
@@ -144,7 +154,8 @@ export function PageSettingsPanel({
             value={settings.blockStyle}
             onChange={(event) =>
               update({
-                blockStyle: event.target.value as AreaPageSettings['blockStyle'],
+                blockStyle: event.target
+                  .value as AreaPageSettings['blockStyle'],
               })
             }
           >
@@ -156,7 +167,9 @@ export function PageSettingsPanel({
           <input
             type="checkbox"
             checked={settings.showBlockTitles}
-            onChange={(event) => update({ showBlockTitles: event.target.checked })}
+            onChange={(event) =>
+              update({ showBlockTitles: event.target.checked })
+            }
           />
           Show block titles
         </label>

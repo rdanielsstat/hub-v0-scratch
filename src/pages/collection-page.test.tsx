@@ -79,6 +79,8 @@ describe('CollectionPage', () => {
     const noteInput = screen.getByRole('textbox', { name: 'Add a note' })
     await user.type(noteInput, 'Review this purchase')
     await user.click(screen.getByRole('button', { name: 'Add note' }))
-    expect(await within(dialog).findByText('Review this purchase')).toBeInTheDocument()
+    expect(
+      await within(dialog).findByText('Review this purchase'),
+    ).toBeInTheDocument()
   })
 })

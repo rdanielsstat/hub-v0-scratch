@@ -124,6 +124,10 @@ describe('DashboardPage states', () => {
 })
 
 describe('DashboardPage populated', () => {
+  // Relative to now, so the 30-day stale threshold never catches the fresh
+  // projects as the calendar moves on. Order still runs p1 (newest) to p4.
+  const daysAgo = (days: number) =>
+    new Date(Date.now() - days * 86400000).toISOString()
   const projects = [
     project({
       id: 'p1',
@@ -131,7 +135,7 @@ describe('DashboardPage populated', () => {
       pitch: 'Track chess games',
       status: 'Active',
       tags: ['chess', 'stats'],
-      updatedAt: '2026-09-19T00:00:00Z',
+      updatedAt: daysAgo(3),
     }),
     project({
       id: 'p2',
@@ -139,7 +143,7 @@ describe('DashboardPage populated', () => {
       pitch: 'Plan the garden',
       status: 'Inbox',
       tags: ['garden'],
-      updatedAt: '2026-09-18T00:00:00Z',
+      updatedAt: daysAgo(4),
     }),
     project({
       id: 'p3',
@@ -149,7 +153,7 @@ describe('DashboardPage populated', () => {
       excitement: 5,
       effort: 1,
       tags: [],
-      updatedAt: '2026-09-17T00:00:00Z',
+      updatedAt: daysAgo(5),
     }),
     project({
       id: 'p4',
@@ -159,7 +163,7 @@ describe('DashboardPage populated', () => {
       excitement: 2,
       effort: 4,
       tags: [],
-      updatedAt: new Date(Date.now() - 90 * 86400000).toISOString(),
+      updatedAt: daysAgo(90),
     }),
   ]
 

@@ -1,4 +1,11 @@
-import type { Area, AreaPageSpec, AreaSection, Block, CollectionSchema, Item } from '@/services/api'
+import type {
+  Area,
+  AreaPageSpec,
+  AreaSection,
+  Block,
+  CollectionSchema,
+  Item,
+} from '@/services/api'
 
 export interface AreaScreenData {
   area: Area | null

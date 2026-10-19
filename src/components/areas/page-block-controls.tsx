@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import type { AreaSection } from '@/services/api'
-import { blockOptions, type AreaBlockType } from '@/components/areas/area-block-options'
+import {
+  blockOptions,
+  type AreaBlockType,
+} from '@/components/areas/area-block-options'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -21,7 +24,10 @@ export function DropZone({
   return (
     <section
       ref={setNodeRef}
-      className={cn('min-w-0 rounded-lg', isOver && 'outline outline-2 outline-primary/40')}
+      className={cn(
+        'min-w-0 rounded-lg',
+        isOver && 'outline outline-2 outline-primary/40',
+      )}
     >
       {children}
     </section>
@@ -77,7 +83,10 @@ export function BlockPicker({
   }, [isOpen, setOpen])
 
   return (
-    <div ref={rootRef} className="group/picker relative flex min-h-5 items-center">
+    <div
+      ref={rootRef}
+      className="group/picker relative flex min-h-5 items-center"
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -112,8 +121,12 @@ export function BlockPicker({
               >
                 <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{option.label}</span>
-                  <span className="block text-xs leading-snug text-muted-foreground">{option.description}</span>
+                  <span className="block text-sm font-medium">
+                    {option.label}
+                  </span>
+                  <span className="block text-xs leading-snug text-muted-foreground">
+                    {option.description}
+                  </span>
                 </span>
               </button>
             )
@@ -137,7 +150,9 @@ export function SectionMenu({
 }) {
   return (
     <header className="mb-2 flex items-center justify-between gap-2">
-      <h2 className="text-sm font-medium text-muted-foreground">{section.title || 'Section'}</h2>
+      <h2 className="text-sm font-medium text-muted-foreground">
+        {section.title || 'Section'}
+      </h2>
       <details className="relative">
         <summary
           aria-label={`Section options${section.title ? ` for ${section.title}` : ''}`}
@@ -151,7 +166,10 @@ export function SectionMenu({
             <Input
               aria-label="Section title"
               defaultValue={section.title ?? ''}
-              onBlur={(event) => event.currentTarget.value !== section.title && onUpdate({ title: event.currentTarget.value })}
+              onBlur={(event) =>
+                event.currentTarget.value !== section.title &&
+                onUpdate({ title: event.currentTarget.value })
+              }
               className="h-8 text-sm text-foreground"
             />
           </label>
@@ -160,7 +178,11 @@ export function SectionMenu({
             <Select
               aria-label="Section layout"
               value={section.layout}
-              onChange={(event) => onUpdate({ layout: event.target.value as AreaSection['layout'] })}
+              onChange={(event) =>
+                onUpdate({
+                  layout: event.target.value as AreaSection['layout'],
+                })
+              }
             >
               <option value="stack">Stack</option>
               <option value="grid">Grid</option>
@@ -172,17 +194,41 @@ export function SectionMenu({
               <Select
                 aria-label="Section columns"
                 value={String(section.columns)}
-                onChange={(event) => onUpdate({ columns: Number(event.target.value) as AreaSection['columns'] })}
+                onChange={(event) =>
+                  onUpdate({
+                    columns: Number(
+                      event.target.value,
+                    ) as AreaSection['columns'],
+                  })
+                }
               >
-                {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} columns</option>)}
+                {[1, 2, 3, 4].map((count) => (
+                  <option key={count} value={count}>
+                    {count} columns
+                  </option>
+                ))}
               </Select>
             </label>
           ) : null}
           <div className="flex gap-1">
-            <Button variant="outline" size="sm" onClick={() => onMove(-1)}><ArrowUp />Move up</Button>
-            <Button variant="outline" size="sm" onClick={() => onMove(1)}><ArrowDown />Move down</Button>
+            <Button variant="outline" size="sm" onClick={() => onMove(-1)}>
+              <ArrowUp />
+              Move up
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => onMove(1)}>
+              <ArrowDown />
+              Move down
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" className="justify-start text-destructive" onClick={onDelete}><Trash2 />Delete section</Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 />
+            Delete section
+          </Button>
         </div>
       </details>
     </header>

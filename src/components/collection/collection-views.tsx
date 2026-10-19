@@ -51,7 +51,7 @@ export function EntryView({
                 {imageUrl ? (
                   <img
                     src={imageUrl}
-                    alt={item.title}
+                    alt=""
                     className="size-full object-cover"
                   />
                 ) : (
@@ -96,12 +96,12 @@ export function EntryView({
               >
                 <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
                 <div className="min-w-0">
-                <h2 className="break-words text-sm font-medium">
-                  {item.title}
-                </h2>
-                <time className="text-xs text-muted-foreground">
-                  {dateLabel}
-                </time>
+                  <h2 className="break-words text-sm font-medium">
+                    {item.title}
+                  </h2>
+                  <time className="text-xs text-muted-foreground">
+                    {dateLabel}
+                  </time>
                 </div>
               </button>
             </li>
@@ -120,7 +120,9 @@ export function EntryView({
           onClick={() => onOpen(item)}
           className="rounded-xl border border-border p-4 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="mb-2 block break-words text-sm font-medium">{item.title}</span>
+          <span className="mb-2 block break-words text-sm font-medium">
+            {item.title}
+          </span>
           {fields.slice(0, 5).map((field) => (
             <p
               key={field.id}

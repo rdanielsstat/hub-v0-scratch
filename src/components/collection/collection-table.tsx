@@ -427,7 +427,9 @@ export function CollectionTable({
                   />
                 </th>
               ))}
-              <th scope="col" aria-label="Actions" />
+              <th scope="col">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -450,7 +452,10 @@ export function CollectionTable({
                   className={`cursor-pointer border-t border-border/70 ${selectedEntryId === item.id ? 'bg-muted/60' : ''}`}
                   onClick={() => onOpen(item)}
                 >
-                  <td className="px-2 py-1 text-center" onClick={(event) => event.stopPropagation()}>
+                  <td
+                    className="px-2 py-1 text-center"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <input
                       type="checkbox"
                       aria-label={`Select ${item.title}`}
@@ -461,7 +466,9 @@ export function CollectionTable({
                     />
                   </td>
                   <td className="px-2 py-1">
-                    <div className={`flex min-w-0 items-center gap-1 ${item.parentItemId ? 'pl-5' : ''}`}>
+                    <div
+                      className={`flex min-w-0 items-center gap-1 ${item.parentItemId ? 'pl-5' : ''}`}
+                    >
                       {hasChildren ? (
                         <button
                           type="button"
@@ -477,7 +484,9 @@ export function CollectionTable({
                             )
                           }}
                         >
-                          <ChevronDown className={expanded ? '' : '-rotate-90'} />
+                          <ChevronDown
+                            className={expanded ? '' : '-rotate-90'}
+                          />
                         </button>
                       ) : null}
                       <button
@@ -489,11 +498,20 @@ export function CollectionTable({
                           onOpen(item)
                         }}
                       >
-                        <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                        <span
+                          aria-hidden="true"
+                          className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground"
+                        >
                           {item.title.slice(0, 1).toUpperCase()}
                         </span>
-                        <span className="min-w-0 break-words">{item.title}</span>
-                        {item.parentItemId ? <span className="shrink-0 text-xs text-muted-foreground">{String(item.data.status ?? 'To do')}</span> : null}
+                        <span className="min-w-0 break-words">
+                          {item.title}
+                        </span>
+                        {item.parentItemId ? (
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {String(item.data.status ?? 'To do')}
+                          </span>
+                        ) : null}
                       </button>
                     </div>
                   </td>
@@ -561,16 +579,27 @@ export function CollectionTable({
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
                 onClick={() => onOpen(item)}
               >
-                <div className="mb-2 flex min-w-0 items-start gap-2" onClick={(event) => event.stopPropagation()}>
+                <div
+                  className="mb-2 flex min-w-0 items-start gap-2"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {hasChildren ? (
                     <button
                       type="button"
                       aria-label={`${expandedChildren ? 'Collapse' : 'Expand'} ${item.title} sub-items`}
                       aria-expanded={expandedChildren}
                       className="grid size-6 shrink-0 place-items-center rounded hover:bg-muted"
-                      onClick={() => setExpandedParentIds((current) => expandedChildren ? current.filter((id) => id !== item.id) : [...current, item.id])}
+                      onClick={() =>
+                        setExpandedParentIds((current) =>
+                          expandedChildren
+                            ? current.filter((id) => id !== item.id)
+                            : [...current, item.id],
+                        )
+                      }
                     >
-                      <ChevronDown className={expandedChildren ? '' : '-rotate-90'} />
+                      <ChevronDown
+                        className={expandedChildren ? '' : '-rotate-90'}
+                      />
                     </button>
                   ) : null}
                   <input
@@ -588,11 +617,18 @@ export function CollectionTable({
                       className={`flex min-w-0 items-center gap-2 rounded px-1 py-1 text-left text-sm font-medium ${item.parentItemId ? 'pl-5' : ''}`}
                       onClick={() => onOpen(item)}
                     >
-                      <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] text-muted-foreground">
+                      <span
+                        aria-hidden="true"
+                        className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] text-muted-foreground"
+                      >
                         {item.title.slice(0, 1).toUpperCase()}
                       </span>
                       <span className="min-w-0 break-words">{item.title}</span>
-                      {item.parentItemId ? <span className="shrink-0 text-xs text-muted-foreground">{String(item.data.status ?? 'To do')}</span> : null}
+                      {item.parentItemId ? (
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {String(item.data.status ?? 'To do')}
+                        </span>
+                      ) : null}
                     </button>
                   </div>
                   <Button
@@ -615,7 +651,10 @@ export function CollectionTable({
                     <span className="break-words text-xs text-muted-foreground">
                       {field.name}
                     </span>
-                    <div className="min-w-0" onClick={(event) => event.stopPropagation()}>
+                    <div
+                      className="min-w-0"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <EditableCell item={item} field={field} onSave={onSave} />
                     </div>
                   </div>

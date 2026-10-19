@@ -124,6 +124,8 @@ export interface FieldDef {
   required?: boolean
   unit?: string
   options?: string[]
+  /** Left out of table columns until shown from the columns menu. */
+  hiddenByDefault?: boolean
   order: number
 }
 
@@ -138,6 +140,8 @@ export interface CollectionSchema {
   name: string
   description: string
   fields: FieldDef[]
+  /** Money direction for currency totals: incoming shows green with "+", outgoing shows "−". */
+  flow?: 'incoming' | 'outgoing'
   createdAt: string
   updatedAt: string
 }

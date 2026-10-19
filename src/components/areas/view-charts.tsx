@@ -46,6 +46,11 @@ export default function ViewCharts({ display, groups, title }: Props) {
       !result || item.value > Number(result.value) ? item : result,
     null,
   )
+  // Month buckets read left to right; categories (locations, accounts) read
+  // better as horizontal bars, where every label fits on its own line.
+  const overTime = values.every((item) =>
+    /^[A-Z][a-z]{2} \d{4}$/.test(item.name),
+  )
   const summary = values.length
     ? `${title}, ${values[0].name} to ${values[values.length - 1].name}, highest in ${highest?.name ?? 'no period'}`
     : `${title}, no data to display`
@@ -55,11 +60,13 @@ export default function ViewCharts({ display, groups, title }: Props) {
       <p className="sr-only" role="img" aria-label={summary}>
         {summary}
       </p>
+      {/* The summary above is the accessible chart; this one is visual only. */}
       <div className="h-52 min-w-0" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           {display === 'donut' ? (
-            <PieChart>
+            <PieChart accessibilityLayer={false}>
               <Pie
+                rootTabIndex={-1}
                 data={values}
                 dataKey="value"
                 nameKey="name"
@@ -77,6 +84,7 @@ export default function ViewCharts({ display, groups, title }: Props) {
             </PieChart>
           ) : display === 'line' ? (
             <LineChart
+              accessibilityLayer={false}
               data={values}
               margin={{ top: 8, right: 10, bottom: 2, left: -16 }}
             >
@@ -111,8 +119,9 @@ export default function ViewCharts({ display, groups, title }: Props) {
                 activeDot={{ r: 4 }}
               />
             </LineChart>
-          ) : (
+          ) : overTime ? (
             <BarChart
+              accessibilityLayer={false}
               data={values}
               margin={{ top: 8, right: 10, bottom: 2, left: -16 }}
             >
@@ -143,6 +152,45 @@ export default function ViewCharts({ display, groups, title }: Props) {
                 fill="var(--primary)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={36}
+              />
+            </BarChart>
+          ) : (
+            <BarChart
+              accessibilityLayer={false}
+              data={values}
+              layout="vertical"
+              margin={{ top: 4, right: 12, bottom: 4, left: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                horizontal={false}
+                stroke="var(--border)"
+              />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => numberFormat.format(Number(value))}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={88}
+                interval={0}
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                formatter={(value) => numberFormat.format(Number(value))}
+              />
+              <Bar
+                dataKey="value"
+                name={title}
+                fill="var(--primary)"
+                radius={[0, 4, 4, 0]}
+                maxBarSize={22}
               />
             </BarChart>
           )}

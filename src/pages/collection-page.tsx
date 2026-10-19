@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   Archive,
@@ -43,7 +43,9 @@ export function CollectionPage() {
   const [undoAvailable, setUndoAvailable] = useState(false)
   const entryId = searchParams.get('entry') ?? ''
   const entryDetails = useEntryDetails(entryId)
-  const selectedEntry = state.resource.data?.items.find((item) => item.id === entryId)
+  const selectedEntry = state.resource.data?.items.find(
+    (item) => item.id === entryId,
+  )
   const {
     resource,
     collection,
@@ -85,7 +87,6 @@ export function CollectionPage() {
     exportCsv,
     saveSchema,
   } = state
-  const searchRef = useRef<HTMLInputElement>(null)
   const amountField = fields.find((field) => field.type === 'currency')
   const dateField = fields.find((field) => field.type === 'date')
   const amountTotal = amountField
@@ -94,9 +95,10 @@ export function CollectionPage() {
         return sum + (typeof value === 'number' ? value : 0)
       }, 0)
     : null
-  const amountAverage = amountTotal !== null && filteredItems.length
-    ? amountTotal / filteredItems.length
-    : 0
+  const amountAverage =
+    amountTotal !== null && filteredItems.length
+      ? amountTotal / filteredItems.length
+      : 0
   const currency = (value: number) =>
     new Intl.NumberFormat(undefined, {
       style: 'currency',
@@ -128,7 +130,11 @@ export function CollectionPage() {
   }
 
   async function saveEntryOptions(field: FieldDef, options: string[]) {
-    await saveSchema(fields.map((current) => current.id === field.id ? { ...current, options } : current))
+    await saveSchema(
+      fields.map((current) =>
+        current.id === field.id ? { ...current, options } : current,
+      ),
+    )
     setToastMessage(`Updated ${field.name} options`)
   }
 
@@ -218,7 +224,9 @@ export function CollectionPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setFilterField(filterField ? '' : (fields[0]?.id ?? ''))}
+          onClick={() =>
+            setFilterField(filterField ? '' : (fields[0]?.id ?? ''))
+          }
         >
           Filters
         </Button>
@@ -240,18 +248,10 @@ export function CollectionPage() {
             Amount
           </Button>
         ) : null}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => searchRef.current?.focus()}
-        >
-          Search
-        </Button>
         <label className="relative min-w-40 flex-1 sm:max-w-xs">
           <span className="sr-only">Search collection</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search entries"
@@ -306,13 +306,7 @@ export function CollectionPage() {
                       const visible =
                         current ??
                         fields
-                          .filter(
-                            (item) =>
-                              !(
-                                collection.id === 'purchases' &&
-                                item.id === 'description'
-                              ),
-                          )
+                          .filter((item) => !item.hiddenByDefault)
                           .map((item) => item.id)
                       return event.target.checked
                         ? [...visible, field.id]
@@ -349,23 +343,32 @@ export function CollectionPage() {
       >
         <div className="rounded-lg border border-border px-3 py-2">
           <p className="text-xs text-muted-foreground">Entries</p>
-          <p className="text-right text-lg font-semibold tabular-nums">{filteredItems.length}</p>
+          <p className="text-right text-lg font-semibold tabular-nums">
+            {filteredItems.length}
+          </p>
         </div>
         {amountTotal !== null ? (
           <>
             <div className="rounded-lg border border-border px-3 py-2">
               <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-right text-lg font-semibold tabular-nums">{currency(amountTotal)}</p>
+              <p className="text-right text-lg font-semibold tabular-nums">
+                {currency(amountTotal)}
+              </p>
             </div>
             <div className="rounded-lg border border-border px-3 py-2">
               <p className="text-xs text-muted-foreground">Average</p>
-              <p className="text-right text-lg font-semibold tabular-nums">{currency(amountAverage)}</p>
+              <p className="text-right text-lg font-semibold tabular-nums">
+                {currency(amountAverage)}
+              </p>
             </div>
           </>
         ) : null}
       </section>
       {toastMessage ? (
-        <p role="status" className="fixed bottom-4 right-4 z-50 rounded-lg border border-border bg-popover px-4 py-2 text-sm shadow-lg">
+        <p
+          role="status"
+          className="fixed bottom-4 right-4 z-50 rounded-lg border border-border bg-popover px-4 py-2 text-sm shadow-lg"
+        >
           {toastMessage}
           {undoAvailable ? (
             <button
@@ -380,7 +383,13 @@ export function CollectionPage() {
               Undo
             </button>
           ) : null}
-          <button type="button" className="ml-3 text-muted-foreground underline" onClick={() => setToastMessage('')}>Dismiss</button>
+          <button
+            type="button"
+            className="ml-3 text-muted-foreground underline"
+            onClick={() => setToastMessage('')}
+          >
+            Dismiss
+          </button>
         </p>
       ) : null}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -420,7 +429,9 @@ export function CollectionPage() {
                 void removeItems(selectedIds).then((removed) => {
                   if (removed) {
                     setUndoAvailable(true)
-                    setToastMessage(`Deleted ${selectedIds.length} entries`)
+                    setToastMessage(
+                      `Deleted ${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'}`,
+                    )
                   }
                 })
               }
@@ -588,7 +599,9 @@ export function CollectionPage() {
           onUpdateSubItem={async (id, completed) => {
             await updateSubItem(id, completed)
             await entryDetails.updateSubItem(id, completed)
-            setToastMessage(completed ? 'Sub-item completed' : 'Sub-item reopened')
+            setToastMessage(
+              completed ? 'Sub-item completed' : 'Sub-item reopened',
+            )
           }}
           onAddFile={(file) => {
             void entryDetails.addFile(file)

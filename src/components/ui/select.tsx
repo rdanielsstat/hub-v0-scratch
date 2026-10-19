@@ -5,10 +5,19 @@ import { cn } from '@/lib/utils'
 /**
  * Native <select> styled to match the design system. Reliable across
  * mobile/desktop and fully accessible without extra JS.
+ *
+ * The arrow is placed on the wrapper, so a select narrower than its parent
+ * (outside a flex row) needs `containerClassName` (for example "w-fit") to
+ * keep the arrow next to the text.
  */
-function Select({ className, children, ...props }: ComponentProps<'select'>) {
+function Select({
+  className,
+  containerClassName,
+  children,
+  ...props
+}: ComponentProps<'select'> & { containerClassName?: string }) {
   return (
-    <div className="relative">
+    <div className={cn('relative', containerClassName)}>
       <select
         data-slot="select"
         // 16px below md, so iOS doesn't zoom on focus (see input.tsx).

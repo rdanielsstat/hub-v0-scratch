@@ -43,12 +43,14 @@ export function SortableAreaBlock({
   const resizeStart = useRef<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
-  const title = block.type === 'view' ? block.view.title : (block.title ?? block.type)
+  const title =
+    block.type === 'view' ? block.view.title : (block.title ?? block.type)
 
   useEffect(() => {
     if (!menuOpen) return
     const dismiss = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) onMenuOpenChange(false)
+      if (!menuRef.current?.contains(event.target as Node))
+        onMenuOpenChange(false)
     }
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -76,7 +78,10 @@ export function SortableAreaBlock({
       id={`block-${block.id}`}
       ref={sortable.setNodeRef}
       style={style}
-      className={cn('group/block relative min-w-0 rounded-lg', customizing && selected && 'outline outline-1 outline-primary/30')}
+      className={cn(
+        'group/block relative min-w-0 rounded-lg',
+        customizing && selected && 'outline outline-1 outline-primary/30',
+      )}
       tabIndex={-1}
       onFocusCapture={() => customizing && onSelect()}
       onClick={() => customizing && onSelect()}
@@ -106,17 +111,71 @@ export function SortableAreaBlock({
           </button>
           {menuOpen ? (
             <div className="absolute right-0 top-9 z-20 flex w-40 flex-col rounded-lg border border-border bg-popover p-1 shadow-lg">
-              <button className="rounded px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onMenuOpenChange(false); onSettings() }}>Settings</button>
-              <button className="rounded px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onMenuOpenChange(false); void onDuplicate(block) }}>Duplicate</button>
+              <button
+                className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                onClick={() => {
+                  onMenuOpenChange(false)
+                  onSettings()
+                }}
+              >
+                Settings
+              </button>
+              <button
+                className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                onClick={() => {
+                  onMenuOpenChange(false)
+                  void onDuplicate(block)
+                }}
+              >
+                Duplicate
+              </button>
               <label className="flex flex-col gap-1 px-3 py-2 text-xs text-muted-foreground">
                 Size
-                <Select aria-label={`Size ${title}`} value={block.size ?? 'medium'} onChange={(event) => void onSave({ ...block, size: event.target.value as BlockSize })} className="h-8 text-sm text-foreground">
-                  <option value="small">Small</option><option value="medium">Medium</option><option value="wide">Wide</option><option value="tall">Tall</option><option value="full">Full</option>
+                <Select
+                  aria-label={`Size ${title}`}
+                  value={block.size ?? 'medium'}
+                  onChange={(event) =>
+                    void onSave({
+                      ...block,
+                      size: event.target.value as BlockSize,
+                    })
+                  }
+                  className="h-8 text-sm text-foreground"
+                >
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="wide">Wide</option>
+                  <option value="tall">Tall</option>
+                  <option value="full">Full</option>
                 </Select>
               </label>
-              <button className="rounded px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onMenuOpenChange(false); void onMove(block, -1) }}>Move up</button>
-              <button className="rounded px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onMenuOpenChange(false); void onMove(block, 1) }}>Move down</button>
-              <button className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-muted" onClick={() => { onMenuOpenChange(false); void onDelete(block) }}>Remove</button>
+              <button
+                className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                onClick={() => {
+                  onMenuOpenChange(false)
+                  void onMove(block, -1)
+                }}
+              >
+                Move up
+              </button>
+              <button
+                className="rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                onClick={() => {
+                  onMenuOpenChange(false)
+                  void onMove(block, 1)
+                }}
+              >
+                Move down
+              </button>
+              <button
+                className="rounded px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
+                onClick={() => {
+                  onMenuOpenChange(false)
+                  void onDelete(block)
+                }}
+              >
+                Remove
+              </button>
             </div>
           ) : null}
         </div>
@@ -145,7 +204,16 @@ export function SortableAreaBlock({
             if (!start) return
             const x = event.clientX - start.x
             const y = event.clientY - start.y
-            const size: BlockSize = x > 150 ? 'full' : x > 60 ? 'wide' : x < -60 ? 'small' : y > 60 ? 'tall' : 'medium'
+            const size: BlockSize =
+              x > 150
+                ? 'full'
+                : x > 60
+                  ? 'wide'
+                  : x < -60
+                    ? 'small'
+                    : y > 60
+                      ? 'tall'
+                      : 'medium'
             void onSave({ ...block, size })
           }}
         >
